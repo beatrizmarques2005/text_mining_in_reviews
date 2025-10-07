@@ -51,15 +51,21 @@ XXXXX
 
 ## 📊 Methodology
 
+### CRISP-DM
 The project follows the **CRISP-DM** process model, consisting of the following phases:
 
-1. **Data Understanding**  
-2. **Data Preparation**  
-3. **Modeling**  
-4. **Evaluation**  
-5. **Deployment**
+1. **Business Understanding**  
+2. **Data Understanding**  
+3. **Data Preparation**  
+4. **Modeling**  
+5. **Evaluation**  
+6. **Deployment**
 
 ![CRISP-DM Diagram](images/CRISP-DM.png)
+
+### CRISP-DM VS Text Mining Fluxogram
+
+![CRISP-DM VS Text Mining Fluxogram](images/CRISP-DM%20VS%20Text%20Mining%20Fluxogram.jpg)
 
 ---
 
