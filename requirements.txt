@@ -1,1 +1,6 @@
-# libraries needed
+pandas
+numpy
+scikit-learn
+nltk
+matplotlib
+seaborn
