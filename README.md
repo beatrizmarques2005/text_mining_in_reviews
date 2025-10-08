@@ -43,12 +43,6 @@ This project aims to apply text mining techniques to address the following infor
 
 ---
 
-## 🧠 Technologies Used
-
-XXXXX
-
----
-
 ## 📊 Methodology
 
 ### CRISP-DM
