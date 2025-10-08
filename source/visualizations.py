@@ -2,14 +2,15 @@
 Atlanta Restaurant Reviews - Exploration Module
 
 This module contains visualization functions for exploring restaurant review data.
-All functions use a consistent color palette and professional styling.
+All functions use a consistent VIRIDIS color palette and professional styling.
 
 """
 
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
-from wordcloud import WordCloud
 from plotly.subplots import make_subplots
 from typing import List, Dict, Optional
 
@@ -18,49 +19,28 @@ from typing import List, Dict, Optional
 # =============================================================================
 
 class ColorPalette:
-    """Modern, beautiful color palette for all visualizations inspired by contemporary design"""
+    """
+    All visualizations automatically use the beautiful predefined viridis color palette.
+    No color customization is allowed - this ensures perfect visual consistency across all charts!
+    """
     
-    # Modern vibrant primary colors
-    CORAL_PINK = '#FF6B9D'      # Vibrant coral pink
-    OCEAN_BLUE = '#4ECDC4'      # Tropical ocean blue  
-    SUNSET_ORANGE = '#FF8C42'   # Warm sunset orange
-    LAVENDER = '#9B59B6'        # Soft lavender purple
-    MINT_GREEN = '#2ECC71'      # Fresh mint green
-    GOLDEN_YELLOW = '#F1C40F'   # Bright golden yellow
-    ROSE_GOLD = '#E91E63'       # Elegant rose gold
-    TURQUOISE = '#1ABC9C'       # Rich turquoise
+    # Text colors
+    DARK_TEXT = '#2D3436'     
+    MEDIUM_TEXT = '#636E72'   
+    LIGHT_TEXT = '#A0A4A8'     
     
-    # Gradient alternatives
-    DEEP_PURPLE = '#6C5CE7'     # Deep purple
-    PEACH = '#FDA7DF'           # Soft peach
-    SAGE_GREEN = '#A8E6CF'      # Sage green
-    WARM_CORAL = '#FF7675'      # Warm coral
-    
-    # Text colors (sophisticated grays)
-    DARK_TEXT = '#2D3436'       # Rich charcoal
-    MEDIUM_TEXT = '#636E72'     # Medium gray
-    LIGHT_TEXT = '#A0A4A8'      # Light gray
-    
-    # Background colors (clean and modern)
-    LIGHT_BACKGROUND = '#FFEAA7'  # Very light cream
-    BORDER_GRAY = '#DDD'          # Soft border
+    # Background colors
+    LIGHT_BACKGROUND = '#FFEAA7' 
+    BORDER_GRAY = '#DDD'
     WHITE = 'white'
-    LIGHT_GRAY = '#F8F9FA'        # Ultra light gray
-    
-    # Beautiful sunset color sequences for multi-series charts
-    SUNSET_SEQUENCE = ['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D']  # Sunset gradient
-    MAIN_SEQUENCE = SUNSET_SEQUENCE  # Use sunset as default
-    PASTEL_SEQUENCE = ['#FFB347', '#FFCC5C', '#FFE135', '#FFA07A', '#FF7F50', '#CD853F']  # Pastel sunset
-    VIBRANT_SEQUENCE = ['#FF4500', '#FF6347', '#FF8C00', '#FFA500', '#FF7F00', '#B22222']  # Vibrant sunset
-    
-    # Plotly color scales (modern alternatives)
-    SUNSET = 'sunset'           # Beautiful sunset gradient
-    TURBO = 'turbo'            # Vibrant rainbow
-    PASTEL = 'pastel'          # Soft pastels
-    VIRIDIS = 'viridis'        # Classic viridis
-    PLASMA = 'plasma'          # Purple-pink gradient
-    BLUES = 'Blues'            # Blue gradient
+    LIGHT_GRAY = '#F8F9FA' 
 
+    # Palletes
+    VIRIDIS_SEQUENCE = ['#440154', '#3b528b', '#21908d', '#5dc962', '#fde725', '#31688e']  # Smooth gradient
+    MAIN_SEQUENCE = VIRIDIS_SEQUENCE  # Use viridis as default
+    PASTEL_SEQUENCE = ['#b48ef7', '#81b1d4', '#8dd3c7', '#b9e769', '#fef3a0', '#f7b267']  # Soft viridis tones with separation
+    VIBRANT_SEQUENCE = ['#482878', '#3e8ebd', '#1fa187', '#90d743', '#fde725', '#ff6b35']  # Vibrant, high-contrast viridis
+    RATINGS_SEQUENCE = ['#d73027', '#fc8d59', '#fee08b', '#d9ef8b', '#1a9850']
 
 class ChartConfig:
     """Default configuration for charts"""
@@ -70,14 +50,13 @@ class ChartConfig:
     LARGE_WIDTH = 1200
     LARGE_HEIGHT = 700
     
-    TITLE_SIZE = 24
+    TITLE_SIZE = 22
     AXIS_TITLE_SIZE = 16
     TICK_SIZE = 12
     TEXT_SIZE = 11
     LEGEND_SIZE = 12
     
     FONT_FAMILY = 'Arial Black'
-
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -122,14 +101,11 @@ def _apply_base_layout(fig, title: str, x_label: str, y_label: str, width: int, 
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor=ColorPalette.LIGHT_GRAY)
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor=ColorPalette.LIGHT_GRAY)
 
-
 # =============================================================================
 # VISUALIZATION FUNCTIONS
 # =============================================================================
 
-def bar_chart(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, str], 
-              color_palette: str = ColorPalette.SUNSET, width: int = ChartConfig.DEFAULT_WIDTH, 
-              height: int = ChartConfig.DEFAULT_HEIGHT) -> None:
+def bar_chart(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, str]) -> None:
     """
     Create a beautiful and professional bar chart with enhanced styling.
     
@@ -139,11 +115,10 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, 
         y: column name for y-axis  
         title: chart title
         labels: dictionary for axis labels
-        color_palette: color scheme (default: viridis)
-        width: chart width in pixels
-        height: chart height in pixels
     """
-    
+    color_palette = ColorPalette.MAIN_SEQUENCE
+    width, height = ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT
+
     # Create the bar chart with enhanced styling
     fig = px.bar(
         data, 
@@ -179,10 +154,8 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, 
     
     fig.show()
 
-
 def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str], title: str, 
-                       labels: Dict[str, str], width: int = ChartConfig.LARGE_WIDTH, 
-                       height: int = ChartConfig.DEFAULT_HEIGHT) -> None:
+                       labels: Dict[str, str]) -> None:
     """
     Create a beautiful clustered (grouped) bar chart with multiple series.
     
@@ -192,12 +165,11 @@ def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str], title:
         y_columns: list of column names for y-axis (multiple series to compare)
         title: chart title
         labels: dictionary for axis labels
-        width: chart width in pixels
-        height: chart height in pixels
     """
     
-    # Always use predefined sunset colors
-    colors = ['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D']  # Sunset gradient colors
+    # Always use predefined viridis colors
+    colors = ColorPalette.MAIN_SEQUENCE
+    width, height = ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT
     
     # Create the clustered bar chart
     fig = go.Figure()
@@ -244,16 +216,15 @@ def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str], title:
     
     fig.show()
 
-
-def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: list, title: str, labels: dict,
-                        width: int = 1200, height: int = 600, top: int = 5):
+def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: list, title: str, labels: dict, top: int = 5):
     """
     Two clustered (grouped) bar charts side by side, sharing the y-axis, with a single legend.
     Left chart: top N sorted by first metric.
     Right chart: top N sorted by second metric.
     """
-    # Always use predefined sunset colors
-    colors = ['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D']  # Sunset gradient colors
+    # Always use predefined viridis colors
+    colors = ColorPalette.MAIN_SEQUENCE
+    width, height = ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT
     
     # Prepare top N data for each metric
     top_data_total = data.sort_values(by=y_columns[0], ascending=False).head(top)
@@ -324,9 +295,7 @@ def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: list, title: str
     
     fig.show()
 
-
-def pie_chart(data: pd.DataFrame, names_col: str, values_col: str, title: str,
-              width: int = 700, height: int = 600):
+def pie_chart(data: pd.DataFrame, names_col: str, values_col: str, title: str) -> None:
     """
     Create a pie chart with Plotly.
 
@@ -337,9 +306,10 @@ def pie_chart(data: pd.DataFrame, names_col: str, values_col: str, title: str,
     - title: chart title
     - width, height: chart size
     """
-    # Always use predefined extended sunset colors
-    colors = ['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D', '#FFA500', '#FF7F50']  # Extended sunset colors
-    
+    # Always use predefined extended viridis colors
+    colors = ColorPalette.MAIN_SEQUENCE
+    width, height = ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT
+
     fig = go.Figure(go.Pie(
         labels=data[names_col],
         values=data[values_col],
@@ -373,7 +343,7 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str, title: str)
         path=[path_col],
         values=value_col,
         title=title,
-        color_discrete_sequence=['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D']
+        color_discrete_sequence=ColorPalette.MAIN_SEQUENCE
     )
     
     fig.update_layout(
@@ -387,10 +357,6 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str, title: str)
         textfont={'size': ChartConfig.TEXT_SIZE, 'color': ColorPalette.DARK_TEXT}
     )
     fig.show()
-
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 def category_rating_analysis(dataset: pd.DataFrame, category_col: str, rating_col: str) -> pd.DataFrame:
     """
@@ -415,8 +381,8 @@ def category_rating_analysis(dataset: pd.DataFrame, category_col: str, rating_co
 
     # Plot category averages (only if multiple observations exist)
     plt.figure(figsize=(10, 6))
-    # Convert sunset colors to matplotlib format
-    matplotlib_colors = ['#FF6B35', '#F7931E', '#FFD23F', '#FF8C42', '#C73E1D', '#A0522D']
+    # Convert viridis colors to matplotlib format
+    matplotlib_colors = [ColorPalette.MAIN_SEQUENCE[i % len(ColorPalette.MAIN_SEQUENCE)] for i in range(len(category_ratings))]
     sns.barplot(
         data=category_ratings[category_ratings['count'] > 5],  # filter categories with enough samples
         y=category_col,
@@ -431,7 +397,6 @@ def category_rating_analysis(dataset: pd.DataFrame, category_col: str, rating_co
     plt.show()
 
     return category_ratings
-
 
 # =============================================================================
 # ADDITIONAL VISUALIZATION FUNCTIONS
@@ -458,7 +423,7 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str, x_label: str,
         x=column, 
         nbins=bins,
         title=title,
-        color_discrete_sequence=['#FF6B35']  # Sunset orange
+        color_discrete_sequence=['#440154']  # Viridis dark purple
     )
     
     _apply_base_layout(fig, title, x_label, 'Frequency', width, height)
@@ -475,8 +440,7 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str, x_label: str,
 
 
 def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, str],
-                size: Optional[str] = None, color: Optional[str] = None,
-                width: int = ChartConfig.DEFAULT_WIDTH, height: int = ChartConfig.DEFAULT_HEIGHT) -> None:
+                size: Optional[str] = None) -> None:
     """
     Create a professional scatter plot.
     
@@ -491,6 +455,8 @@ def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[st
         width: chart width in pixels
         height: chart height in pixels
     """
+    color = ColorPalette.MAIN_SEQUENCE 
+    width, height = ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT
     
     fig = px.scatter(
         data,
@@ -500,7 +466,7 @@ def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[st
         labels=labels,
         size=size,
         color=color,
-        color_continuous_scale=ColorPalette.SUNSET
+        color_continuous_scale=color
     )
     
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y), width, height)
@@ -516,8 +482,7 @@ def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[st
     fig.show()
 
 
-def box_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, str],
-            width: int = ChartConfig.LARGE_WIDTH, height: int = ChartConfig.DEFAULT_HEIGHT) -> None:
+def box_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, str]) -> None:
     """
     Create a professional box plot.
     
@@ -530,6 +495,7 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, s
         width: chart width in pixels
         height: chart height in pixels
     """
+    width, height = ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT
     
     fig = px.box(
         data,
@@ -537,7 +503,7 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str, labels: Dict[str, s
         y=y,
         title=title,
         labels=labels,
-        color_discrete_sequence=['#F7931E']  # Sunset yellow-orange
+        color_discrete_sequence=ColorPalette.MAIN_SEQUENCE
     )
     
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y), width, height)
