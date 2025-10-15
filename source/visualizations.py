@@ -32,8 +32,9 @@ class ColorPalette:
     WHITE = "white"
     LIGHT_GRAY = "#F8F9FA"
     BORDER_GRAY = "#DDD"
-    VIRIDIS = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
-    RATINGS = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
+
+    MAIN_PALLETE = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
+    RATINGS_PALLETE = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
 
 
 class ChartConfig:
@@ -42,6 +43,7 @@ class ChartConfig:
     DEFAULT_HEIGHT = 600
     LARGE_WIDTH = 1200
     LARGE_HEIGHT = 700
+    
     TITLE_SIZE = 22
     AXIS_TITLE_SIZE = 16
     TICK_SIZE = 12
