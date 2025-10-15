@@ -18,7 +18,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import os
 
 # =============================================================================
 # VISUAL STYLE CONFIGURATION
@@ -32,8 +33,9 @@ class ColorPalette:
     WHITE = "white"
     LIGHT_GRAY = "#F8F9FA"
     BORDER_GRAY = "#DDD"
-    VIRIDIS = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
-    RATINGS = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
+
+    MAIN_PALLETE = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
+    RATINGS_PALLETE = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
 
 
 class ChartConfig:
@@ -42,6 +44,7 @@ class ChartConfig:
     DEFAULT_HEIGHT = 600
     LARGE_WIDTH = 1200
     LARGE_HEIGHT = 700
+    
     TITLE_SIZE = 22
     AXIS_TITLE_SIZE = 16
     TICK_SIZE = 12
@@ -262,6 +265,35 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
     fig.show()
 
 
+def ttt_word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    restaurant_df = df[df["title"] == restaurant_name]
+
+    combined_text = " ".join(restaurant_df["text"])
+
+    # Choose vectorizer
+    if vectorisation == "bow":
+        vectorizer = CountVectorizer(stop_words='english')
+    else:
+        vectorizer = TfidfVectorizer(stop_words='english')
+
+    X = vectorizer.fit_transform([combined_text])
+    words = vectorizer.get_feature_names_out()
+    vector = X.toarray().flatten()
+
+    # Create frequency dictionary
+    freq_dict = dict(zip(words, vector))
+
+    # Generate and save word cloud
+    wc.generate_from_frequencies(freq_dict)
+
+    filename = f"WC_{restaurant_name.replace(' ', '_')}_{vectorisation.upper()}.png"
+    save_path = os.path.join(folder_path, filename)
+    wc.to_file(save_path)
+    
 # =============================================================================
 # GEO VISUALIZATION
 # =============================================================================
