@@ -1,5 +1,5 @@
 """
-Atlanta Restaurant Reviews — Visualization Utilities
+Visualization Module
 ====================================================
 
 Clean and consistent plotting helpers for the Text Mining project.

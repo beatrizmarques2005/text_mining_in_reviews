@@ -1,3 +1,12 @@
+"""
+
+Utils Module
+------------
+
+Utility functions (file I/O, configuration loading, constants).
+
+"""
+
 import pandas as pd
 import os
 
