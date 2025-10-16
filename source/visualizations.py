@@ -106,7 +106,7 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
     data = data.sort_values(by=y, ascending=False).head(top_n)
     fig = px.bar(
         data, x=x, y=y, title=title, labels=labels,
-        color=y, color_continuous_scale=ColorPalette.VIRIDIS, text=y
+        color=y, color_continuous_scale=ColorPalette.MAIN_PALLETE, text=y
     )
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)
@@ -293,6 +293,39 @@ def ttt_word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation
     filename = f"WC_{restaurant_name.replace(' ', '_')}_{vectorisation.upper()}.png"
     save_path = os.path.join(folder_path, filename)
     wc.to_file(save_path)
+
+def most_common_words(df, text_col="text", category_col=None, top_n=20):
+    """
+    Find the most common words overall and optionally by category.
+    """
+    vectorizer = CountVectorizer(stop_words='english')
+    
+    # Overall frequencies
+    X = vectorizer.fit_transform(df[text_col])
+    word_counts = X.toarray().sum(axis=0)
+    words = vectorizer.get_feature_names_out()
+    overall_freq = pd.DataFrame({"word": words, "count": word_counts})
+    overall_freq = overall_freq.sort_values(by="count", ascending=False).head(top_n)
+
+    print("🔠 Most Common Words Overall:")
+    print(overall_freq)
+
+    # If category_col provided, compute by category
+    if category_col:
+        print("\n📊 Most Common Words by Category:")
+        category_results = {}
+        for cat, group in df.groupby(category_col):
+            X_cat = vectorizer.fit_transform(group[text_col])
+            word_counts_cat = X_cat.toarray().sum(axis=0)
+            words_cat = vectorizer.get_feature_names_out()
+            freq_df = pd.DataFrame({"word": words_cat, "count": word_counts_cat})
+            freq_df = freq_df.sort_values(by="count", ascending=False).head(top_n).reset_index(drop=True)
+            category_results[cat] = freq_df
+            print(f"\n➡️ {cat}:")
+            print(freq_df)
+        #return overall_freq, category_results
+
+    #return overall_freq
     
 # =============================================================================
 # GEO VISUALIZATION
