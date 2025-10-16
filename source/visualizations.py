@@ -283,7 +283,7 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
     fig.show()
 
 
-def ttt_word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
+def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
