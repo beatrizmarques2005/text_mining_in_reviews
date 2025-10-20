@@ -158,7 +158,8 @@ def normalize_repeated_chars(token, max_repeat=2):
 def main_pipeline(raw_text,
                   print_output=False,
                   no_stopwords=True,
-                  custom_stopwords=None,
+                  stopwords_tokeep = [],
+                  extra_stopwords=None,
                   convert_diacritics=True,
                   lowercase=True,
                   lemmatized=True,
@@ -166,7 +167,6 @@ def main_pipeline(raw_text,
                   stemmed=False,
                   pos_tags_list="no_pos",
                   tokenized_output=False,
-                  keep_words = [],
                   normalized_repeated_chars=False,
                   **kwargs):
     """
@@ -190,7 +190,7 @@ def main_pipeline(raw_text,
         Print input and processed output.
     no_stopwords : bool
         Remove standard NLTK stopwords.
-    custom_stopwords : list
+    extra_stopwords : list
         List of additional stopwords.
     convert_diacritics : bool
         Convert accented characters to ASCII.
@@ -212,11 +212,10 @@ def main_pipeline(raw_text,
     list or str
         Preprocessed tokens or detokenized string.
     """
-    if custom_stopwords is None:
-        custom_stopwords = []
+    if extra_stopwords is None:
+        extra_stopwords = []
 
     text = regex_cleaner(raw_text, **kwargs)
-
 
     # --- Step: Tokenization and contraction handling ---
     tokens = nltk.tokenize.word_tokenize(text)
@@ -249,12 +248,12 @@ def main_pipeline(raw_text,
         base_stopwords = nltk.corpus.stopwords.words("english")
 
         # Optional: keep specific words (like 'again')
-        stopwords = [w for w in base_stopwords if w not in keep_words]
+        stopwords = [w for w in base_stopwords if w not in stopwords_tokeep]
 
         # Merge user-provided custom stopwords
-        if custom_stopwords is None:
-            custom_stopwords = []
-        stopwords = set(stopwords + custom_stopwords)
+        if extra_stopwords is None:
+            extra_stopwords = []
+        stopwords = set(stopwords + extra_stopwords)
 
         # Filter tokens
         tokens = [t for t in tokens if t.lower() not in stopwords]
