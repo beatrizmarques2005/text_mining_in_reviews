@@ -29,6 +29,7 @@ from collections import defaultdict, Counter
 from tqdm import tqdm
 from unidecode import unidecode
 from nltk.tokenize.treebank import TreebankWordDetokenizer
+from nltk.corpus import words
 
 
 # ------------------------------------------------------------------------------
@@ -93,6 +94,7 @@ def regex_cleaner(raw_text,
     if no_punctuation:
         text = re.sub(patterns["punctuation"], "", text)
         text = re.sub(patterns["apostrophe"], "", text)
+        text = re.sub(r'\s*-\s*', ' ', text) # no hifens
 
     return text.strip()
 
@@ -121,6 +123,34 @@ def lemmatize_all(token, list_pos=["n", "v", "a", "r", "s"]):
         token = lemmatizer.lemmatize(token, pos)
     return token
 
+# ------------------------------------------------------------------------------
+# WORD NORMALIZATION
+# ------------------------------------------------------------------------------
+def normalize_repeated_chars(token, max_repeat=2):
+    """
+    Reduces consecutive repeated characters beyond `max_repeat` to that limit.
+    Example:
+        'soooo' -> 'soo'
+        'niiiiceeee' -> 'niicee'
+        'excellent' -> 'excellent'
+    """
+    return re.sub(r'(.)\1{%d,}' % max_repeat, r'\1' * max_repeat, token)
+"""def normalize_repeated_chars(token):
+    '''
+    Reduces repeated characters only if the reduced version is a valid English word.
+    '''
+    word_set = set(words.words())
+
+    if token.lower() in word_set:
+        return token  # already valid word
+
+    # progressively reduce repeats until a valid word or minimal form
+    pattern = re.compile(r'(.)\1{2,}')  # 3+ repeats
+    while True:
+        new_token = pattern.sub(r'\1\1', token)  # shrink 3+ repeats to 2
+        if new_token == token or new_token.lower() in word_set:
+            return new_token
+        token = new_token"""
 
 # ------------------------------------------------------------------------------
 # MAIN PIPELINE
@@ -137,6 +167,7 @@ def main_pipeline(raw_text,
                   pos_tags_list="no_pos",
                   tokenized_output=False,
                   keep_words = [],
+                  normalized_repeated_chars=False,
                   **kwargs):
     """
     Executes the main text preprocessing pipeline.
@@ -209,6 +240,9 @@ def main_pipeline(raw_text,
         normalized_tokens.append(new_tok)
 
     tokens = normalized_tokens
+
+    if normalized_repeated_chars:
+        tokens = [normalize_repeated_chars(t) for t in tokens]
 
     # --- Step: Stopword removal ---
     if no_stopwords:
