@@ -136,6 +136,7 @@ def main_pipeline(raw_text,
                   stemmed=False,
                   pos_tags_list="no_pos",
                   tokenized_output=False,
+                  keep_words = [],
                   **kwargs):
     """
     Executes the main text preprocessing pipeline.
@@ -214,7 +215,6 @@ def main_pipeline(raw_text,
         base_stopwords = nltk.corpus.stopwords.words("english")
 
         # Optional: keep specific words (like 'again')
-        keep_words = ["again"]
         stopwords = [w for w in base_stopwords if w not in keep_words]
 
         # Merge user-provided custom stopwords
