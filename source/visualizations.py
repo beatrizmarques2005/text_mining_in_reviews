@@ -1,5 +1,5 @@
 """
-Atlanta Restaurant Reviews — Visualization Utilities
+Visualization Module
 ====================================================
 
 Clean and consistent plotting helpers for the Text Mining project.
@@ -104,9 +104,16 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
               labels: Dict[str, str], top_n: int = 10) -> None:
     """Bar chart for the top-N records."""
     data = data.sort_values(by=y, ascending=False).head(top_n)
+
+    # Prepare text labels: if the series is float, format to 2 decimal places
+    if pd.api.types.is_float_dtype(data[y]):
+        text_vals = data[y].round(2).map(lambda v: f"{v:.2f}")
+    else:
+        text_vals = data[y].astype(str)
+
     fig = px.bar(
         data, x=x, y=y, title=title, labels=labels,
-        color=y, color_continuous_scale=ColorPalette.VIRIDIS, text=y
+        color=y, color_continuous_scale=ColorPalette.MAIN_PALLETE, text=text_vals
     )
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)
@@ -126,7 +133,7 @@ def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
         go.Pie(
             labels=data[names_col], values=data[values_col],
             textinfo="label+percent", hoverinfo="label+value+percent",
-            marker=dict(colors=ColorPalette.VIRIDIS,
+            marker=dict(colors=ColorPalette.MAIN_PALLETE,
                         line=dict(color=ColorPalette.WHITE, width=2))
         )
     )
@@ -145,7 +152,7 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str,
     """Histogram with unified style."""
     fig = px.histogram(
         data, x=column, nbins=bins, title=title,
-        color_discrete_sequence=[ColorPalette.VIRIDIS[0]]
+        color_discrete_sequence=[ColorPalette.MAIN_PALLETE[0]]
     )
     _apply_base_layout(fig, title, x_label, "Frequency",
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)
@@ -167,7 +174,7 @@ def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str],
                 name=labels.get(col, col),
                 x=data[x], y=data[col],
                 text=data[col], textposition="outside",
-                marker=dict(color=ColorPalette.VIRIDIS[i % len(ColorPalette.VIRIDIS)],
+                marker=dict(color=ColorPalette.MAIN_PALLETE[i % len(ColorPalette.MAIN_PALLETE)],
                             line=dict(width=1.2, color=ColorPalette.BORDER_GRAY))
             )
         )
@@ -183,14 +190,15 @@ def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str],
 def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: List[str],
                          title: str, labels: Dict[str, str], top: int = 5) -> None:
     """Display two side-by-side clustered charts for quick comparison."""
-    colors = ColorPalette.VIRIDIS
+    colors = ColorPalette.MAIN_PALLETE
     top_a = data.sort_values(by=y_columns[0], ascending=False).head(top)
     top_b = data.sort_values(by=y_columns[1], ascending=False).head(top)
 
     fig = make_subplots(
         rows=1, cols=2, shared_yaxes=True,
         subplot_titles=[f"Top {top} {labels.get(y_columns[0], y_columns[0])}",
-                        f"Top {top} {labels.get(y_columns[1], y_columns[1])}"]
+                        f"Top {top} {labels.get(y_columns[1], y_columns[1])}"],
+        horizontal_spacing=0.12
     )
 
     for i, col in enumerate(y_columns):
@@ -211,10 +219,20 @@ def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: List[str],
         barmode="group",
         width=ChartConfig.LARGE_WIDTH,
         height=ChartConfig.DEFAULT_HEIGHT,
-        legend=dict(orientation="h", x=0.5, xanchor="center", y=1.05),
+        # place legend on the right side to avoid overlap with plots
+        legend=dict(
+            orientation="v",
+            x=1.02,
+            xanchor="left",
+            y=0.5,
+            yanchor="middle",
+            font=dict(size=ChartConfig.LEGEND_SIZE)
+        ),
         plot_bgcolor=ColorPalette.WHITE,
         paper_bgcolor=ColorPalette.WHITE,
+        margin=dict(l=80, r=220, t=120, b=80)
     )
+
     fig.show()
 
 
@@ -227,7 +245,7 @@ def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str,
     """Scatter plot using continuous Viridis scale."""
     fig = px.scatter(
         data, x=x, y=y, title=title, labels=labels, size=size,
-        color_continuous_scale=ColorPalette.VIRIDIS
+        color_continuous_scale=ColorPalette.MAIN_PALLETE
     )
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
@@ -238,7 +256,7 @@ def line_plot(data: pd.DataFrame, x: str, y: str, title: str,
               labels: Dict[str, str]) -> None:
     """Line plot for trend visualization."""
     fig = px.line(data, x=x, y=y, title=title, labels=labels,
-                 color_discrete_sequence=ColorPalette.VIRIDIS)
+                 color_discrete_sequence=ColorPalette.MAIN_PALLETE)
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
     fig.show()
@@ -248,7 +266,7 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
              labels: Dict[str, str]) -> None:
     """Box plot for distribution comparison."""
     fig = px.box(data, x=x, y=y, title=title, labels=labels,
-                 color_discrete_sequence=ColorPalette.VIRIDIS)
+                 color_discrete_sequence=ColorPalette.MAIN_PALLETE)
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.show()
@@ -259,13 +277,13 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
     """Treemap for hierarchical data representation."""
     fig = px.treemap(
         data, path=[path_col], values=value_col, title=title,
-        color_discrete_sequence=ColorPalette.VIRIDIS
+        color_discrete_sequence=ColorPalette.MAIN_PALLETE
     )
     fig.update_traces(textinfo="label+value")
     fig.show()
 
 
-def ttt_word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
+def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
@@ -293,6 +311,39 @@ def ttt_word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation
     filename = f"WC_{restaurant_name.replace(' ', '_')}_{vectorisation.upper()}.png"
     save_path = os.path.join(folder_path, filename)
     wc.to_file(save_path)
+
+def most_common_words(df, text_col="text", category_col=None, top_n=20):
+    """
+    Find the most common words overall and optionally by category.
+    """
+    vectorizer = CountVectorizer(stop_words='english')
+    
+    # Overall frequencies
+    X = vectorizer.fit_transform(df[text_col])
+    word_counts = X.toarray().sum(axis=0)
+    words = vectorizer.get_feature_names_out()
+    overall_freq = pd.DataFrame({"word": words, "count": word_counts})
+    overall_freq = overall_freq.sort_values(by="count", ascending=False).head(top_n)
+
+    print("🔠 Most Common Words Overall:")
+    print(overall_freq)
+
+    # If category_col provided, compute by category
+    if category_col:
+        print("\n📊 Most Common Words by Category:")
+        category_results = {}
+        for cat, group in df.groupby(category_col):
+            X_cat = vectorizer.fit_transform(group[text_col])
+            word_counts_cat = X_cat.toarray().sum(axis=0)
+            words_cat = vectorizer.get_feature_names_out()
+            freq_df = pd.DataFrame({"word": words_cat, "count": word_counts_cat})
+            freq_df = freq_df.sort_values(by="count", ascending=False).head(top_n).reset_index(drop=True)
+            category_results[cat] = freq_df
+            print(f"\n➡️ {cat}:")
+            print(freq_df)
+        #return overall_freq, category_results
+
+    #return overall_freq
     
 # =============================================================================
 # GEO VISUALIZATION
@@ -304,19 +355,22 @@ def extract_coordinates(url: str) -> Tuple[Optional[float], Optional[float]]:
     return (float(match.group(1)), float(match.group(2))) if match else (None, None)
 
 
+
 def plot_restaurant_map(dataset: pd.DataFrame, color_by: str,
                         url_col: str = "url", title_col: str = "title",
                         category_col: str = "categoryName",
                         reviews_col: str = "reviewsCount",
                         zoom: int = 10, height: int = 700) -> None:
+    
     """Map of restaurants colored by a chosen attribute."""
+
     dataset[["latitude", "longitude"]] = dataset[url_col].apply(
         lambda u: pd.Series(extract_coordinates(u))
     )
     dataset = dataset.dropna(subset=["latitude", "longitude"]).copy()
 
     color_args = (
-        dict(color_continuous_scale=ColorPalette.RATINGS)
+        dict(color_continuous_scale=ColorPalette.RATINGS_PALLETE)
         if pd.api.types.is_numeric_dtype(dataset[color_by])
         else dict(color_discrete_sequence=px.colors.qualitative.Safe)
     )
