@@ -10,7 +10,7 @@ This project aims to apply text mining techniques to address the following infor
 
 - **Multilabel Classification**: Classify a restaurant's cuisine type based on the content of its reviews.
 - **Sentiment Analysis**: Evaluate the relationship between the polarity of a review and its assigned rating.
-- **(Optional)** Additional requirement defined by the group, such as co-occurrence analysis or topic modeling.
+- **(XXX)** Additional requirement defined by the group, such as co-occurrence analysis or topic modeling.
 
 ---
 
@@ -19,12 +19,23 @@ This project aims to apply text mining techniques to address the following infor
 ```tree
 ├── data/
 │   └── atlanta_restaurant_slice_2023.csv
+├── images/
+│   └── XXX.csv
 ├── notebooks/
-│   ├── exploration.ipynb
-│   └── XXX.ipynb
+│   ├── 01_data_understanding.ipynb
+|   ├── 02_general_data_prep.ipynb
+|   ├── 03_multilabel_classification.ipynb
+|   ├── 04_sentiment_analysis.ipynb
+|   ├── 05_XXX.ipynb
+│   └── 06_final_deployment.ipynb
 ├── source/
-│   ├── utils.py
-│   └── XXX.py
+│   ├── my_utils.py
+│   ├── visualizations.py
+│   ├── general_preprocessing.py
+│   ├── classification_prep.py
+│   ├── sentiment_prep.py
+│   ├── modelling.py
+│   └── evaluation-py
 ├── report/
 │   └── final_report.pdf
 ├── README.md
@@ -114,4 +125,5 @@ After pushing your changes, merge them into the shared branch:
 git checkout shared-branch-name
 git pull origin shared-branch-name
 git merge your-branch-name
+git push origin shared-branch-name
 ```
