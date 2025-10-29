@@ -68,9 +68,9 @@ The project follows the **CRISP-DM** process model, consisting of the following 
 
 ![CRISP-DM Diagram](images/CRISP-DM.png)
 
-### CRISP-DM VS Text Mining Fluxogram
+### Text Mining Fluxogram VS CRISP-DM
 
-![CRISP-DM VS Text Mining Fluxogram](images/CRISP-DM%20VS%20Text%20Mining%20Fluxogram.jpg)
+![Text Mining Fluxogram VS CRISP-DM](images/Text%20Mining%20Fluxograma%20VS%20CRISP-DM.jpg)
 
 ---
 
