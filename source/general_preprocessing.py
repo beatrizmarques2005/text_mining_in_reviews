@@ -5,36 +5,38 @@ Text Preprocessing Module
 This module provides a flexible text preprocessing pipeline for text mining tasks,
 such as classification, sentiment analysis, and co-occurrence analysis.
 
-Functions
----------
-1. regex_cleaner():
-   Performs regex-based cleaning on raw text, removing noise such as emojis, hashtags, and URLs.
-
-2. lemmatize_all():
-   Lemmatizes a token using multiple parts of speech.
-
-3. main_pipeline():
-   Executes the full preprocessing workflow — cleaning, tokenization, stopword removal,
-   normalization, lemmatization/stemming, and optional POS tagging.
-
-4. cooccurrence_matrix_sentence_generator():
-   Generates a co-occurrence matrix based on tokenized and preprocessed sentences.
 """
 
+# --- Standard Libraries ---
 import re
-import nltk
-import pandas as pd
-import numpy as np
 from collections import defaultdict, Counter
+
+# --- Data Handling ---
+import numpy as np
+import pandas as pd
+
+# --- Progress Bars ---
 from tqdm import tqdm
-from unidecode import unidecode
+
+# --- NLP / Text Processing ---
+import nltk
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import words
+from unidecode import unidecode
+
+# --- Machine Learning / Feature Extraction ---
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+
+# --- Visualization ---
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 # ------------------------------------------------------------------------------
 # REGEX CLEANER
 # ------------------------------------------------------------------------------
+
 def regex_cleaner(raw_text,
                   no_emojis=True,
                   no_hashtags=True,
@@ -67,7 +69,7 @@ def regex_cleaner(raw_text,
     str
         Cleaned text.
     """
-    # Define patterns
+
     patterns = {
         "newline": r"(\n)",
         "hashtags_at": r"([#@])",
@@ -76,6 +78,7 @@ def regex_cleaner(raw_text,
         "url": r"(?:\w+:/{2})?(?:www)?(?:\.)?([a-z\d]+)(?:\.)([a-z\d\.]{2,})(/[a-zA-Z/\d]+)?",
         "punctuation": r"[\u0021-\u0026\u0028-\u002C\u002E-\u002F\u003A-\u003F\u005B-\u005F\u2010-\u2028\ufeff`]+",
         "apostrophe": r"'(?=[A-Z\s])|(?<=[a-z\.\?\!\,\s])'",
+        "hifen": r'\s*-\s*',
     }
 
     text = raw_text
@@ -94,14 +97,24 @@ def regex_cleaner(raw_text,
     if no_punctuation:
         text = re.sub(patterns["punctuation"], "", text)
         text = re.sub(patterns["apostrophe"], "", text)
-        text = re.sub(r'\s*-\s*', ' ', text) # no hifens
+        text = re.sub(patterns["hifen"], ' ', text) # no hifens
 
     return text.strip()
 
+def repeated_chars(token, max_repeat=2):
+    """
+    Reduces consecutive repeated characters beyond `max_repeat` to that limit.
+    Example:
+        'soooo' -> 'soo'
+        'niiiiceeee' -> 'niicee'
+        'excellent' -> 'excellent'
+    """
+    return re.sub(r'(.)\1{%d,}' % max_repeat, r'\1' * max_repeat, token)
 
 # ------------------------------------------------------------------------------
 # LEMMATIZATION
 # ------------------------------------------------------------------------------
+
 def lemmatize_all(token, list_pos=["n", "v", "a", "r", "s"]):
     """
     Lemmatizes a token using multiple POS tags.
@@ -124,41 +137,41 @@ def lemmatize_all(token, list_pos=["n", "v", "a", "r", "s"]):
     return token
 
 # ------------------------------------------------------------------------------
-# WORD NORMALIZATION
+# VECTORIZATION
 # ------------------------------------------------------------------------------
-def normalize_repeated_chars(token, max_repeat=2):
-    """
-    Reduces consecutive repeated characters beyond `max_repeat` to that limit.
-    Example:
-        'soooo' -> 'soo'
-        'niiiiceeee' -> 'niicee'
-        'excellent' -> 'excellent'
-    """
-    return re.sub(r'(.)\1{%d,}' % max_repeat, r'\1' * max_repeat, token)
-"""def normalize_repeated_chars(token):
-    '''
-    Reduces repeated characters only if the reduced version is a valid English word.
-    '''
-    word_set = set(words.words())
 
-    if token.lower() in word_set:
-        return token  # already valid word
+def vectorize_texts(text, vectorizer_type="tfidf", max_features=1000):
 
-    # progressively reduce repeats until a valid word or minimal form
-    pattern = re.compile(r'(.)\1{2,}')  # 3+ repeats
-    while True:
-        new_token = pattern.sub(r'\1\1', token)  # shrink 3+ repeats to 2
-        if new_token == token or new_token.lower() in word_set:
-            return new_token
-        token = new_token"""
+    # Convert tokenized lists to strings
+    processed_texts = pd.Series(text).apply(
+        lambda x: " ".join(x) if isinstance(x, (list, tuple)) else str(x)
+    )
+
+    # Choose vectorizer
+    if vectorizer_type == "tfidf":
+        vectorizer = TfidfVectorizer(max_features=max_features)
+    elif vectorizer_type == "count":
+        vectorizer = CountVectorizer(max_features=max_features)
+    else:
+        raise ValueError("Invalid vectorizer_type. Choose 'tfidf' or 'count'.")
+
+    dtm = vectorizer.fit_transform(processed_texts)
+    return dtm, vectorizer
+
+'''Frequency & One-hot encoding 
+TF-IDF 
+N-gram Vectorizer
+Bag of Words '''
+
 
 # ------------------------------------------------------------------------------
 # MAIN PIPELINE
 # ------------------------------------------------------------------------------
+
 def main_pipeline(raw_text,
                   print_output=False,
                   no_stopwords=True,
-                  stopwords_tokeep = [],
+                  stopwords_tokeep=None,
                   extra_stopwords=None,
                   convert_diacritics=True,
                   lowercase=True,
@@ -167,60 +180,37 @@ def main_pipeline(raw_text,
                   stemmed=False,
                   pos_tags_list="no_pos",
                   tokenized_output=False,
-                  normalized_repeated_chars=False,
+                  treat_repeated_chars=False,
                   **kwargs):
     """
     Executes the main text preprocessing pipeline.
 
-    Steps:
-    1. Regex-based cleaning
-    2. Tokenization
-    3. Stopword removal
-    4. Diacritic conversion
-    5. Lemmatization / Stemming
-    6. POS tagging (optional)
-    7. Lowercasing (optional)
-    8. Return either tokens or detokenized text
+    Steps (grouped):
+    1. Clean data      - remove extraneous content.
+    2. Transform data  - tokenization, POS tagging, stopwords removal.
+    3. Normalize data  - case, stemming, and lemmatization.
 
-    Parameters
-    ----------
-    raw_text : str
-        Input raw text.
-    print_output : bool
-        Print input and processed output.
-    no_stopwords : bool
-        Remove standard NLTK stopwords.
-    extra_stopwords : list
-        List of additional stopwords.
-    convert_diacritics : bool
-        Convert accented characters to ASCII.
-    lowercase : bool
-        Convert tokens to lowercase.
-    lemmatized : bool
-        Apply lemmatization.
-    list_pos : list of str
-        POS tags for lemmatization.
-    stemmed : bool
-        Apply stemming (Porter).
-    pos_tags_list : str
-        Options: "no_pos", "pos_list", "pos_tuples".
-    tokenized_output : bool
-        If True, return tokens instead of string.
-
-    Returns
-    -------
-    list or str
-        Preprocessed tokens or detokenized string.
+    Other docstring details omitted for brevity.
     """
+
     if extra_stopwords is None:
         extra_stopwords = []
+    
+    if stopwords_tokeep is None:
+        stopwords_tokeep = []
 
+    # --------------------------------------------------------------------------
+    # PART 1: CLEAN DATA - remove extraneous content (regex cleaning, basic prep)
+    # --------------------------------------------------------------------------
     text = regex_cleaner(raw_text, **kwargs)
 
-    # --- Step: Tokenization and contraction handling ---
+    # --------------------------------------------------------------------------
+    # PART 2: TRANSFORM DATA - tokenization, contraction handling, POS & stopwords
+    # --------------------------------------------------------------------------
+    # Tokenization
     tokens = nltk.tokenize.word_tokenize(text)
 
-    # Apply contraction replacements before lemmatization
+    # Contraction replacements (handled as part of transformation)
     contraction_map = {
         "'m": "am",
         "n't": "not",
@@ -237,29 +227,30 @@ def main_pipeline(raw_text,
         for pattern, repl in contraction_map.items():
             new_tok = re.sub(pattern, repl, new_tok)
         normalized_tokens.append(new_tok)
-
     tokens = normalized_tokens
 
-    if normalized_repeated_chars:
-        tokens = [normalize_repeated_chars(t) for t in tokens]
+    # Optional repeated-character normalization (transformation step can include token-level cleanup)
+    if treat_repeated_chars:
+        tokens = [repeated_chars(t) for t in tokens]
 
-    # --- Step: Stopword removal ---
+    # Stopword removal
     if no_stopwords:
         base_stopwords = nltk.corpus.stopwords.words("english")
-
-        # Optional: keep specific words (like 'again')
         stopwords = [w for w in base_stopwords if w not in stopwords_tokeep]
-
-        # Merge user-provided custom stopwords
-        if extra_stopwords is None:
-            extra_stopwords = []
         stopwords = set(stopwords + extra_stopwords)
-
-        # Filter tokens
         tokens = [t for t in tokens if t.lower() not in stopwords]
 
+    # POS tagging (if requested, return early according to mode)
+    if pos_tags_list in {"pos_list", "pos_tuples"}:
+        pos_tuples = nltk.pos_tag(tokens)
+        if pos_tags_list == "pos_list":
+            return [t[1] for t in pos_tuples]
+        return pos_tuples
 
-    # Convert diacritics
+    # --------------------------------------------------------------------------
+    # PART 3: NORMALIZE DATA - diacritics, lemmatization, stemming, case
+    # --------------------------------------------------------------------------
+    # Convert diacritics (accented -> ascii)
     if convert_diacritics:
         tokens = [unidecode(t) for t in tokens]
 
@@ -269,13 +260,6 @@ def main_pipeline(raw_text,
     if stemmed:
         stemmer = nltk.stem.PorterStemmer()
         tokens = [stemmer.stem(t) for t in tokens]
-
-    # POS tagging
-    if pos_tags_list in {"pos_list", "pos_tuples"}:
-        pos_tuples = nltk.pos_tag(tokens)
-        if pos_tags_list == "pos_list":
-            return [t[1] for t in pos_tuples]
-        return pos_tuples
 
     # Lowercasing
     if lowercase:
@@ -287,54 +271,48 @@ def main_pipeline(raw_text,
 
     return tokens if tokenized_output else TreebankWordDetokenizer().detokenize(tokens)
 
-
 # ------------------------------------------------------------------------------
 # CO-OCCURRENCE MATRIX
 # ------------------------------------------------------------------------------
-def cooccurrence_matrix_sentence_generator(preproc_sentences, sentence_cooc=False, window_size=5):
+
+def cooccurrence_matrix(vectorized_df, sentence_cooc=False, window_size=5):
     """
-    Builds a co-occurrence matrix from preprocessed tokenized sentences.
+    Builds a co-occurrence matrix from a document-term DataFrame.
 
     Parameters
     ----------
-    preproc_sentences : list of list of str
-        List of tokenized sentences.
+    df : pd.DataFrame
+        Document-term matrix (documents as rows, words as columns). Must be numeric.
     sentence_cooc : bool
-        If True, considers full sentence context; if False, uses a window size.
+        If True, considers full sentence context; if False, uses a sliding window (currently not used for DataFrame input).
     window_size : int
-        Size of the sliding context window.
+        Size of sliding window (ignored for DataFrame input).
 
     Returns
     -------
     pd.DataFrame
-        Co-occurrence matrix (words as rows and columns).
+        Co-occurrence matrix.
     """
-    co_occurrences = defaultdict(Counter)
+    # Ensure numeric values
+    X_dense = vectorized_df.astype(float).values
+    feature_names = vectorized_df.columns.tolist()
+    n_words = len(feature_names)
+    
+    co_matrix = np.zeros((n_words, n_words), dtype=int)
+    word_idx = {w: i for i, w in enumerate(feature_names)}
 
-    # Populate co-occurrence counts
-    for sentence in tqdm(preproc_sentences, desc="Computing co-occurrences"):
-        if sentence_cooc:
-            for w1 in sentence:
-                for w2 in sentence:
-                    if w1 != w2:
-                        co_occurrences[w1][w2] += 1
-        else:
-            for i, w1 in enumerate(sentence):
-                for j in range(max(0, i - window_size), min(len(sentence), i + window_size + 1)):
-                    if i != j:
-                        co_occurrences[w1][sentence[j]] += 1
+    # Co-occurrence by document
+    for doc_vector in tqdm(X_dense, desc="Computing co-occurrences"):
+        present_indices = np.where(doc_vector > 0)[0]
+        for i in present_indices:
+            for j in present_indices:
+                if i != j:
+                    co_matrix[i, j] += 1
 
-    # Create matrix
-    vocab = sorted(set(word for sent in preproc_sentences for word in sent))
-    word_idx = {w: i for i, w in enumerate(vocab)}
-    matrix = np.zeros((len(vocab), len(vocab)), dtype=int)
+    cooc_df = pd.DataFrame(co_matrix, index=feature_names, columns=feature_names)
+    cooc_df = cooc_df.reindex(cooc_df.sum().sort_values(ascending=False).index, axis=0)\
+                     .reindex(cooc_df.sum().sort_values(ascending=False).index, axis=1)
+    
+    return cooc_df
 
-    for w, neighbors in co_occurrences.items():
-        for neighbor, count in neighbors.items():
-            matrix[word_idx[w]][word_idx[neighbor]] = count
-
-    df = pd.DataFrame(matrix, index=vocab, columns=vocab)
-    df = df.reindex(df.sum().sort_values(ascending=False).index, axis=0).reindex(df.sum().sort_values(ascending=False).index, axis=1)
-
-    return df
 

@@ -20,6 +20,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 import os
+from typing import Union, Dict, Any
+import numpy as np
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 # =============================================================================
 # VISUAL STYLE CONFIGURATION
@@ -37,7 +41,6 @@ class ColorPalette:
     MAIN_PALLETE = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
     RATINGS_PALLETE = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
 
-
 class ChartConfig:
     """Default layout configuration for all charts."""
     DEFAULT_WIDTH = 1000
@@ -51,7 +54,6 @@ class ChartConfig:
     TEXT_SIZE = 11
     LEGEND_SIZE = 12
     FONT_FAMILY = "Arial Black"
-
 
 # =============================================================================
 # SHARED LAYOUT FUNCTION
@@ -95,7 +97,6 @@ def _apply_base_layout(fig, title: str, x_label: str, y_label: str,
     fig.update_xaxes(showgrid=True)
     fig.update_yaxes(showgrid=True)
 
-
 # =============================================================================
 # BASIC CHARTS
 # =============================================================================
@@ -125,7 +126,6 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
     )
     fig.show()
 
-
 def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
               title: str) -> None:
     """Pie chart using the Viridis palette."""
@@ -146,7 +146,6 @@ def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
     )
     fig.show()
 
-
 def histogram_chart(data: pd.DataFrame, column: str, title: str,
                     x_label: str, bins: int = 30) -> None:
     """Histogram with unified style."""
@@ -158,7 +157,6 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str,
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.update_traces(marker=dict(line=dict(width=1.2, color=ColorPalette.BORDER_GRAY)))
     fig.show()
-
 
 # =============================================================================
 # COMPARATIVE CHARTS
@@ -185,7 +183,6 @@ def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str],
         legend=dict(orientation="h", x=0.5, xanchor="center", y=1.1)
     )
     fig.show()
-
 
 def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: List[str],
                          title: str, labels: Dict[str, str], top: int = 5) -> None:
@@ -235,7 +232,6 @@ def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: List[str],
 
     fig.show()
 
-
 # =============================================================================
 # ADVANCED CHARTS
 # =============================================================================
@@ -251,7 +247,6 @@ def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
     fig.show()
 
-
 def line_plot(data: pd.DataFrame, x: str, y: str, title: str,
               labels: Dict[str, str]) -> None:
     """Line plot for trend visualization."""
@@ -260,7 +255,6 @@ def line_plot(data: pd.DataFrame, x: str, y: str, title: str,
     _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
                        ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
     fig.show()
-
 
 def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
              labels: Dict[str, str]) -> None:
@@ -271,7 +265,6 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.show()
 
-
 def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
                   title: str) -> None:
     """Treemap for hierarchical data representation."""
@@ -281,7 +274,6 @@ def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
     )
     fig.update_traces(textinfo="label+value")
     fig.show()
-
 
 def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
 
@@ -311,6 +303,62 @@ def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bo
     filename = f"WC_{restaurant_name.replace(' ', '_')}_{vectorisation.upper()}.png"
     save_path = os.path.join(folder_path, filename)
     wc.to_file(save_path)
+
+def wordcloud_from_vectorized(
+    folder_path: str,
+    filename: str,
+    vectorized_df: Union[pd.DataFrame, np.ndarray],
+    top_n: int = 20,
+) -> Dict[str, Any]:
+    """
+    Generate and save a word cloud from a vectorized token-frequency matrix.
+
+    Parameters
+    ----------
+    folder_path : str
+        Directory to save the image (created if missing)
+    filename : str
+        Name of the saved word cloud image
+    vectorized_df : DataFrame or ndarray
+        Columns=tokens if DataFrame, or 2D array (samples x tokens)
+    top_n : int
+        Number of top tokens to include
+
+    Returns
+    -------
+    dict
+        Keys: 'path', 'freq_dict', 'wordcloud'
+    """
+
+    # Convert ndarray to DataFrame if needed
+    if isinstance(vectorized_df, np.ndarray):
+        vectorized_df = pd.DataFrame(vectorized_df, columns=[f"token_{i}" for i in range(vectorized_df.shape[1])])
+
+    # Aggregate token counts/weights across rows
+    scores = vectorized_df.mean(axis=0)
+
+    # Take top N tokens
+    top_scores = scores.sort_values(ascending=False).head(top_n)
+    freq_dict = {str(tok): float(val) for tok, val in top_scores.items() if float(val) > 0}
+
+    if not freq_dict:
+        raise ValueError("No positive token frequencies found to build a word cloud.")
+
+    # Generate WordCloud
+    wc = WordCloud(width=800, height=400, background_color="white", colormap="viridis")
+    wc.generate_from_frequencies(freq_dict)
+
+    # Ensure folder exists and save
+    os.makedirs(folder_path, exist_ok=True)
+    save_path = os.path.join(folder_path, filename)
+    wc.to_file(save_path)
+
+    if display:
+        plt.figure(figsize=(12, 6))
+        plt.imshow(wc, interpolation='bilinear')
+        plt.axis('off')
+
+    return {"path": save_path, "wordcloud": wc}
 
 def most_common_words(df, text_col="text", category_col=None, top_n=20):
     """
@@ -354,8 +402,6 @@ def extract_coordinates(url: str) -> Tuple[Optional[float], Optional[float]]:
     match = re.search(r"@([-+]?\d*\.\d+),([-+]?\d*\.\d+)", str(url))
     return (float(match.group(1)), float(match.group(2))) if match else (None, None)
 
-
-
 def plot_restaurant_map(dataset: pd.DataFrame, color_by: str,
                         url_col: str = "url", title_col: str = "title",
                         category_col: str = "categoryName",
@@ -387,8 +433,9 @@ def plot_restaurant_map(dataset: pd.DataFrame, color_by: str,
 #--------------------------------------------------------------------------------
 # TERM FREQUENCY PLOTTING FUNCTION
 #--------------------------------------------------------------------------------
+
 def plot_term_frequency(df, nr_terms, df_name, show=True):
-    
+        
     # Create the Seaborn bar plot
     plt.figure(figsize=(10, 8))
     sns_plot = sns.barplot(x='frequency', y='words', data=df.head(nr_terms))  # Plotting top 20 terms for better visualization
@@ -402,3 +449,4 @@ def plot_term_frequency(df, nr_terms, df_name, show=True):
     plt.close()
 
     return fig
+
