@@ -146,6 +146,30 @@ def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
     )
     fig.show()
 
+def donut_chart(data: pd.DataFrame, names_col: str, values_col: str,
+                title: str) -> None:
+    """Donut chart using the Viridis palette."""
+
+    fig = go.Figure(
+        go.Pie(
+            labels=data[names_col], values=data[values_col],
+            textinfo="label+percent", hoverinfo="label+value+percent",
+            marker=dict(colors=ColorPalette.RATINGS_PALLETE,
+                        line=dict(color=ColorPalette.WHITE, width=2)),
+            hole=0.4,
+            sort=False,
+            direction="counterclockwise" 
+        )
+    )
+    fig.update_layout(
+        title=dict(text=title, x=0.5),
+        width=ChartConfig.DEFAULT_WIDTH,
+        height=ChartConfig.DEFAULT_HEIGHT,
+        plot_bgcolor=ColorPalette.WHITE,
+        paper_bgcolor=ColorPalette.WHITE,
+    )
+    fig.show()
+
 def histogram_chart(data: pd.DataFrame, column: str, title: str,
                     x_label: str, bins: int = 30) -> None:
     """Histogram with unified style."""
