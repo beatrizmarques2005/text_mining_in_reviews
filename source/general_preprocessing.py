@@ -32,6 +32,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# --- Language Detection ---
+from langdetect import detect, DetectorFactory
+from langdetect.lang_detect_exception import LangDetectException
+
 
 # ------------------------------------------------------------------------------
 # REGEX CLEANER
@@ -315,4 +319,46 @@ def cooccurrence_matrix(vectorized_df, sentence_cooc=False, window_size=5):
     
     return cooc_df
 
+#---------------------------------------------------------------------------------------------------
+#                                       NON-ENGLISH-REVIEWS
+#---------------------------------------------------------------------------------------------------
 
+# Set seed for reproducibility
+DetectorFactory.seed = 0
+
+def extract_non_english_reviews(df, text_column="review"):
+    """
+    Detects the language of each review and returns a DataFrame
+    containing only non-English reviews with their original indices.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame containing text data.
+    text_column : str, default='review'
+        Name of the column that holds the review text.
+
+    Returns
+    -------
+    non_english_df : pd.DataFrame
+        DataFrame with columns: ['index', text_column, 'language']
+        containing only non-English reviews.
+    """
+
+    # Inner function for safe detection
+    def detect_language(text):
+        try:
+            return detect(str(text))
+        except LangDetectException:
+            return "unknown"
+
+    # Detect language for each review
+    df["language"] = df[text_column].apply(detect_language)
+
+    # Filter non-English rows
+    non_english_df = df[df["language"] != "en"].copy()
+
+    # Keep original index for reference
+    non_english_df = non_english_df.reset_index()[["index", text_column, "language"]]
+
+    return non_english_df
