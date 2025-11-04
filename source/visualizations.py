@@ -175,7 +175,7 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str,
     """Histogram with unified style."""
     fig = px.histogram(
         data, x=column, nbins=bins, title=title,
-        color_discrete_sequence=[ColorPalette.MAIN_PALLETE[0]], kde=True
+        color_discrete_sequence=[ColorPalette.MAIN_PALLETE[0]]
     )
     _apply_base_layout(fig, title, x_label, "Frequency",
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)

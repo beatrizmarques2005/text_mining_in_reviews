@@ -35,7 +35,10 @@ from plotly.subplots import make_subplots
 # --- Language Detection ---
 from langdetect import detect, DetectorFactory
 from langdetect.lang_detect_exception import LangDetectException
+import langid
 
+# --- Translation ---
+from deep_translator import GoogleTranslator
 
 # ------------------------------------------------------------------------------
 # REGEX CLEANER
@@ -326,7 +329,7 @@ def cooccurrence_matrix(vectorized_df, sentence_cooc=False, window_size=5):
 # Set seed for reproducibility
 DetectorFactory.seed = 0
 
-def extract_non_english_reviews(df, text_column="review"):
+def extract_non_english_reviews_langdetect(df, text_column="review"):
     """
     Detects the language of each review and returns a DataFrame
     containing only non-English reviews with their original indices.
@@ -362,3 +365,37 @@ def extract_non_english_reviews(df, text_column="review"):
     non_english_df = non_english_df.reset_index()[["index", text_column, "language"]]
 
     return non_english_df
+
+
+def extract_non_english_reviews_langid(df, text_column="review"):
+    """
+    Detects the language of each review using langid and returns
+    non-English reviews with their original indices.
+    """
+    def detect_language(text):
+        lang, _ = langid.classify(str(text))
+        return lang
+    #def detect_language(text, min_prob=0.85):
+    #    text = str(text)
+    #    lang, prob = langid.classify(text)
+    #    if prob < min_prob:
+    #        return "en"
+    #    return lang
+    # Detect language
+    df["language"] = df[text_column].apply(detect_language)
+
+    # Filter non-English rows
+    non_english_df = df[df["language"] != "en"].copy()
+    non_english_df = non_english_df.reset_index()[["index", text_column, "language"]]
+
+    return non_english_df
+
+#---------------------------------------------------------------------------------------------------
+#                                       TRANSLATION TO ENGLISH
+#---------------------------------------------------------------------------------------------------
+
+def translate_to_english(text):
+    try:
+        return GoogleTranslator(source='auto', target='en').translate(text)
+    except Exception:
+        return text  # fallback if translation fails
