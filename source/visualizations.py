@@ -24,6 +24,7 @@ from typing import Union, Dict, Any
 import numpy as np
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # =============================================================================
 # VISUAL STYLE CONFIGURATION
@@ -377,6 +378,7 @@ def wordcloud_from_vectorized(
     save_path = os.path.join(folder_path, filename)
     wc.to_file(save_path)
 
+    display = True
     if display:
         plt.figure(figsize=(12, 6))
         plt.imshow(wc, interpolation='bilinear')
