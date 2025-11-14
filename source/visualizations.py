@@ -171,6 +171,27 @@ def donut_chart(data: pd.DataFrame, names_col: str, values_col: str,
     )
     fig.show()
 
+def heatmap_chart(data: pd.DataFrame, title: str) -> None:
+    """Heatmap with annotations and custom project color palette."""
+    
+    fig = px.imshow(
+        data,
+        text_auto=".2f",                     # annot=True, fmt=".2f"
+        color_continuous_scale=ColorPalette.MAIN_PALLETE,
+        aspect="equal",                     # square=True
+        labels={"x": "", "y": "", "color": "Similarity"},
+        title=title
+    )
+
+    fig.update_layout(
+        width=900,
+        height=700,
+        margin=dict(l=80, r=150, t=80, b=60),
+        coloraxis_showscale=True,
+    )
+
+    fig.show()
+
 def histogram_chart(data: pd.DataFrame, column: str, title: str,
                     x_label: str, bins: int = 30) -> None:
     """Histogram with unified style."""
@@ -290,14 +311,22 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.show()
 
-def treemap_chart(data: pd.DataFrame, path_col: str, value_col: str,
+def treemap_chart(data: pd.DataFrame, path_col, value_col: str,
                   title: str) -> None:
     """Treemap for hierarchical data representation."""
     fig = px.treemap(
-        data, path=[path_col], values=value_col, title=title,
+        data, path=path_col, values=value_col, title=title,
         color_discrete_sequence=ColorPalette.MAIN_PALLETE
     )
     fig.update_traces(textinfo="label+value")
+
+    # Make treemap larger
+    fig.update_layout(
+        width=900,
+        height=600,
+        margin=dict(t=50, l=25, r=25, b=25)
+    )
+
     fig.show()
 
 def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
