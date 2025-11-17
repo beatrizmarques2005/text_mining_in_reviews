@@ -147,29 +147,51 @@ def lemmatize_all(token, list_pos=["n", "v", "a", "r", "s"]):
 # VECTORIZATION
 # ------------------------------------------------------------------------------
 
-def vectorize_texts(text, vectorizer_type="tfidf", max_features=1000):
-
+def vectorize_texts(
+    texts, 
+    vectorizer_type="tfidf", 
+    max_features=1000, 
+    ngram_range=(1, 1),  # default: unigrams
+    use_bow=False         # if True, use plain Bag-of-Words (CountVectorizer)
+):
+    """
+    Vectorizes text data using TF-IDF, Count Vectorizer, or N-grams.
+    
+    Parameters:
+    -----------
+    texts : list or pd.Series
+        The text data (can be tokenized lists or strings).
+    vectorizer_type : str
+        "tfidf" for TF-IDF, "count" for CountVectorizer (Bag-of-Words). Default is "tfidf".
+    max_features : int
+        Maximum number of features (columns) in the resulting matrix.
+    ngram_range : tuple
+        The n-gram range to consider, e.g., (1,2) for unigrams + bigrams.
+    use_bow : bool
+        If True, forces using Bag-of-Words (CountVectorizer) regardless of vectorizer_type.
+    
+    Returns:
+    --------
+    dtm : sparse matrix
+        Document-Term Matrix (rows = documents, columns = features)
+    vectorizer : fitted vectorizer object
+    """
+    
     # Convert tokenized lists to strings
-    processed_texts = pd.Series(text).apply(
+    processed_texts = pd.Series(texts).apply(
         lambda x: " ".join(x) if isinstance(x, (list, tuple)) else str(x)
     )
 
-    # Choose vectorizer
-    if vectorizer_type == "tfidf":
-        vectorizer = TfidfVectorizer(max_features=max_features)
-    elif vectorizer_type == "count":
-        vectorizer = CountVectorizer(max_features=max_features)
+    # Decide vectorizer
+    if use_bow or vectorizer_type == "count":
+        vectorizer = CountVectorizer(max_features=max_features, ngram_range=ngram_range)
+    elif vectorizer_type == "tfidf":
+        vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range)
     else:
         raise ValueError("Invalid vectorizer_type. Choose 'tfidf' or 'count'.")
-
+    
     dtm = vectorizer.fit_transform(processed_texts)
     return dtm, vectorizer
-
-'''Frequency & One-hot encoding 
-TF-IDF 
-N-gram Vectorizer
-Bag of Words '''
-
 
 # ------------------------------------------------------------------------------
 # MAIN PIPELINE

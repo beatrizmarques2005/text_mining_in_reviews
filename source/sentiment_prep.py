@@ -12,7 +12,7 @@ This module contains functions and classes to preprocess and prepare text data f
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from textblob import TextBlob
 import numpy as np
-vader = SentimentIntensityAnalyzer()
+
 
 # =============================================================================
 # VADER WRAPPER FUNCTION
@@ -24,6 +24,8 @@ def vader_wrapper(user_review):
     If user_review is a list, returns the mean of each score across sentences.
     If user_review is a single string, returns VADER's scores for that string.
     """
+    vader = SentimentIntensityAnalyzer()
+
     if isinstance(user_review, list):
         pos_list, neg_list, neu_list, comp_list = [], [], [], []
         for sentence in user_review:
