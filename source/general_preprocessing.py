@@ -558,3 +558,95 @@ def translate_to_english(text):
         return GoogleTranslator(source='auto', target='en').translate(text)
     except Exception:
         return text  # fallback if translation fails
+
+#---------------------------------------------------------------------------------------------------
+#                                        FEATURE EXTRACTION FOR NER
+#---------------------------------------------------------------------------------------------------
+def word2features(token_list, POS_list, i):
+    word = token_list[i]
+    postag = POS_list[i]
+
+    features = {
+        'bias': 1.0, #prior probability of the label
+        'word.lower()': word.lower(),
+        'word[-3:]': word[-3:],
+        'word[-2:]': word[-2:],
+        'word.isupper()': word.isupper(),
+        'word.istitle()': word.istitle(),
+        'word.isdigit()': word.isdigit(),
+        'postag': postag,
+        'postag[:2]': postag[:2],
+    }
+    
+    if i > 0:
+        word1 = token_list[i-1]
+        postag1 = POS_list[i-1]
+        features.update({
+            '-1:word.lower()': word1.lower(),
+            '-1:word.istitle()': word1.istitle(),
+            '-1:word.isupper()': word1.isupper(),
+            '-1:postag': postag1,
+            '-1:postag[:2]': postag1[:2],
+        })
+    else:
+        features['BOS'] = True
+
+    if i < len(token_list)-1:
+        word1 = token_list[i+1]
+        postag1 = POS_list[i+1]
+        features.update({
+            '+1:word.lower()': word1.lower(),
+            '+1:word.istitle()': word1.istitle(),
+            '+1:word.isupper()': word1.isupper(),
+            '+1:postag': postag1,
+            '+1:postag[:2]': postag1[:2],
+        })
+    else:
+        features['EOS'] = True
+
+    return features
+
+
+def sent2features(token_list, POS_list):
+    return [word2features(token_list, POS_list, i) for i in range(len(token_list))]
+
+# ------------------------------------------------------------------------------
+#                         CREATION OF BIO NER TAGS
+# ------------------------------------------------------------------------------
+
+def align_bio(doc, tokens):
+    """
+    Convert spaCy entity spans into BIO tags aligned to a list of tokens.
+    """
+    bio_labels = ["O"] * len(tokens)
+
+    for ent in doc.ents:
+        ent_tokens = [t.text for t in ent]
+
+        # Find where the entity starts in our token list
+        for i in range(len(tokens)):
+            # Match entity beginning
+            if tokens[i:i+len(ent_tokens)] == ent_tokens:
+                bio_labels[i] = f"B-{ent.label_}"
+                # Mark inside tokens
+                for j in range(i+1, i+len(ent_tokens)):
+                    bio_labels[j] = f"I-{ent.label_}"
+                break
+
+    return bio_labels
+
+def align_bio_to_custom_tokens(text, tokens, nlp, equivalence_table):
+    doc = nlp(text)
+    bio = ["O"] * len(tokens)
+
+    for ent in doc.ents:
+        ent_tokens = [t.text for t in ent]
+
+        for i in range(len(tokens)):
+            if tokens[i:i+len(ent_tokens)] == ent_tokens:
+                bio[i] = "B" + equivalence_table[ent.label_]
+                for j in range(i+1, i+len(ent_tokens)):
+                    bio[j] = "I" + equivalence_table[ent.label_]
+                break
+
+    return bio
