@@ -482,7 +482,7 @@ def cooccurrence_matrix(vectorized_df, sentence_cooc=False, window_size=5):
     return cooc_df
 
 #---------------------------------------------------------------------------------------------------
-#                                       NON-ENGLISH-REVIEWS
+# NON-ENGLISH-REVIEWS
 #---------------------------------------------------------------------------------------------------
 
 # Set seed for reproducibility
@@ -525,7 +525,6 @@ def extract_non_english_reviews_langdetect(df, text_column="review"):
 
     return non_english_df
 
-
 def extract_non_english_reviews_langid(df, text_column="review"):
     """
     Detects the language of each review using langid and returns
@@ -550,7 +549,7 @@ def extract_non_english_reviews_langid(df, text_column="review"):
     return non_english_df
 
 #---------------------------------------------------------------------------------------------------
-#                                       TRANSLATION TO ENGLISH
+# TRANSLATION TO ENGLISH
 #---------------------------------------------------------------------------------------------------
 
 def translate_to_english(text):
@@ -560,8 +559,9 @@ def translate_to_english(text):
         return text  # fallback if translation fails
 
 #---------------------------------------------------------------------------------------------------
-#                                        FEATURE EXTRACTION FOR NER
+# FEATURE EXTRACTION FOR NER
 #---------------------------------------------------------------------------------------------------
+
 def word2features(token_list, POS_list, i):
     word = token_list[i]
     postag = POS_list[i]
@@ -606,12 +606,11 @@ def word2features(token_list, POS_list, i):
 
     return features
 
-
 def sent2features(token_list, POS_list):
     return [word2features(token_list, POS_list, i) for i in range(len(token_list))]
 
 # ------------------------------------------------------------------------------
-#                         CREATION OF BIO NER TAGS
+# CREATION OF BIO NER TAGS
 # ------------------------------------------------------------------------------
 
 def align_bio(doc, tokens):
@@ -650,3 +649,4 @@ def align_bio_to_custom_tokens(text, tokens, nlp, equivalence_table):
                 break
 
     return bio
+
