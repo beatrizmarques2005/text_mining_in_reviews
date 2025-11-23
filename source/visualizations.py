@@ -13,7 +13,9 @@ and minimal typography for visual harmony across the report.
 
 import re
 from typing import List, Dict, Optional, Tuple
-
+from collections import defaultdict, Counter
+import networkx as nx
+from tqdm import tqdm
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -25,6 +27,8 @@ import numpy as np
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import seaborn as sns
+import nltk
+
 
 # =============================================================================
 # VISUAL STYLE CONFIGURATION
@@ -311,23 +315,12 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.show()
 
-def treemap_chart(data: pd.DataFrame, path_col, value_col: str,
-                  title: str) -> None:
-    """Treemap for hierarchical data representation."""
-    fig = px.treemap(
-        data, path=path_col, values=value_col, title=title,
-        color_discrete_sequence=ColorPalette.MAIN_PALLETE
-    )
-    fig.update_traces(textinfo="label+value")
 
-    # Make treemap larger
-    fig.update_layout(
-        width=900,
-        height=600,
-        margin=dict(t=50, l=25, r=25, b=25)
-    )
 
-    fig.show()
+# =============================================================================
+# Word Clouds
+# =============================================================================
+
 
 def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
 
@@ -414,6 +407,326 @@ def wordcloud_from_vectorized(
         plt.axis('off')
 
     return {"path": save_path, "wordcloud": wc}
+
+
+def wordcloud_from_tokens(
+    token_series: pd.Series,
+    max_words: int = 100,
+    title: Optional[str] = None,
+) -> WordCloud:
+    """
+    Generate and display a word cloud directly from a Series of token lists (BoW).
+
+    This matches the Week 4 'BoW wordcloud' style:
+    - Counts raw token frequencies across all documents
+    - Does NOT depend on TF-IDF or any vectorizer
+
+    Parameters
+    ----------
+    token_series : pd.Series
+        Each element should be a list (or tuple) of tokens.
+    max_words : int, default=100
+        Maximum number of words to show in the cloud.
+    title : str, optional
+        Optional title to show above the figure.
+
+    Returns
+    -------
+    WordCloud
+        The generated WordCloud object.
+    """
+    # Count tokens
+    counter = Counter()
+    for tokens in token_series:
+        if isinstance(tokens, (list, tuple)):
+            counter.update(tokens)
+
+    # Take the most common tokens
+    freq_dict = dict(counter.most_common(max_words))
+    if not freq_dict:
+        raise ValueError("No tokens found to build a word cloud.")
+
+    wc = WordCloud(
+        width=1200,
+        height=600,
+        background_color="white"
+    ).generate_from_frequencies(freq_dict)
+
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation="bilinear")
+    plt.axis("off")
+    if title:
+        plt.title(title)
+    plt.show()
+
+    return wc
+
+def wordcloud_by_rating(
+    token_series: pd.Series,
+    ratings_series: pd.Series,
+    max_words: int = 100,
+    title: Optional[str] = None,
+) -> WordCloud:
+    """
+    Wordcloud where:
+    - SIZE  = how often a word appears (BoW frequency)
+    - COLOR = average star rating of reviews where the word appears,
+              mapped to ColorPalette.RATINGS_PALLETE.
+
+    Parameters
+    ----------
+    token_series : pd.Series
+        Each element is a list/tuple of tokens for one review
+        (e.g. dataset["03_normalized_text"]).
+    ratings_series : pd.Series
+        Numeric ratings aligned with token_series (same length/index).
+    max_words : int
+        Maximum number of words to draw.
+    title : str, optional
+        Title for the matplotlib figure.
+    """
+    # 1) Count frequencies and accumulate ratings per token
+    freq_counter = Counter()
+    rating_sum = defaultdict(float)
+    rating_count = defaultdict(int)
+
+    for tokens, rating in zip(token_series, ratings_series):
+        if not isinstance(tokens, (list, tuple)):
+            continue
+        try:
+            rating_val = float(rating)
+        except (TypeError, ValueError):
+            continue
+
+        for tok in tokens:
+            freq_counter[tok] += 1
+            rating_sum[tok] += rating_val
+            rating_count[tok] += 1
+
+    # 2) Top words by frequency
+    most_common = freq_counter.most_common(max_words)
+    freq_dict = {tok: freq for tok, freq in most_common}
+
+    if not freq_dict:
+        raise ValueError("No tokens found to build rating-based word cloud.")
+
+    # 3) Average rating per token
+    avg_rating = {}
+    for tok, _ in most_common:
+        if rating_count[tok] > 0:
+            avg_rating[tok] = rating_sum[tok] / rating_count[tok]
+        else:
+            avg_rating[tok] = np.nan
+
+    global_mean = np.nanmean(list(avg_rating.values())) if avg_rating else 3.0
+
+    # 4) Base wordcloud using frequencies (size)
+    wc = WordCloud(
+        width=1200,
+        height=600,
+        background_color="white"
+    ).generate_from_frequencies(freq_dict)
+
+    # 5) Colour mapping using YOUR RATINGS_PALLETE
+    palette = ColorPalette.RATINGS_PALLETE  # ["#d73027", ..., "#1a9850"]
+
+    def rating_color_func(word, *args, **kwargs):
+        r = avg_rating.get(word, global_mean)   # average rating for this word
+        # normalise rating 1–5 → 0–1
+        r_norm = (r - 1.0) / 4.0
+        r_norm = min(max(r_norm, 0.0), 1.0)
+        # map to palette index 0..4
+        idx = int(round(r_norm * (len(palette) - 1)))
+        idx = max(0, min(idx, len(palette) - 1))
+        return palette[idx]
+
+    # recolor using the rating-based colour function
+    wc = wc.recolor(color_func=rating_color_func)
+
+    # 6) Plot
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation="bilinear")
+    plt.axis("off")
+    if title:
+        plt.title(title)
+    plt.show()
+
+    return wc
+
+def wordcloud_by_pos(
+    token_series: pd.Series,
+    max_words: int = 100,
+    title: Optional[str] = None,
+    pos_series: Optional[pd.Series] = None,
+) -> WordCloud:
+    """
+    Wordcloud where:
+    - SIZE  = frequency (BoW)
+    - COLOR = dominant POS of each word (noun / verb / adjective / other).
+
+    Parameters
+    ----------
+    token_series : pd.Series
+        Each element is a list/tuple of tokens for one review.
+    max_words : int
+        Maximum number of words to include.
+    title : str, optional
+        Title for the plot.
+    pos_series : pd.Series, optional
+        If provided, each element is a list of POS tags aligned with token_series.
+        If None, POS tags are inferred with nltk.pos_tag.
+    """
+    def coarse_pos(tag: str) -> str:
+        """Map Penn Treebank POS tags to coarse categories."""
+        if tag.startswith("N"):
+            return "NOUN"
+        if tag.startswith("V"):
+            return "VERB"
+        if tag.startswith("J"):
+            return "ADJ"
+        return "OTHER"
+
+    freq_counter = Counter()
+    pos_counts = defaultdict(lambda: Counter())
+
+    
+    if pos_series is not None:
+        for tokens, tags in zip(token_series, pos_series):
+            if not isinstance(tokens, (list, tuple)):
+                continue
+            if not isinstance(tags, (list, tuple)):
+                continue
+            for tok, tag in zip(tokens, tags):
+                freq_counter[tok] += 1
+                pos_counts[tok][coarse_pos(str(tag))] += 1
+    else:
+        for tokens in token_series:
+            if not isinstance(tokens, (list, tuple)):
+                continue
+            tagged = nltk.pos_tag(tokens)
+            for tok, tag in tagged:
+                freq_counter[tok] += 1
+                pos_counts[tok][coarse_pos(tag)] += 1
+
+   
+    most_common = freq_counter.most_common(max_words)
+    freq_dict = {tok: freq for tok, freq in most_common}
+
+    if not freq_dict:
+        raise ValueError("No tokens found to build POS-based word cloud.")
+
+    word_pos = {}
+    for tok, _ in most_common:
+        if pos_counts[tok]:
+            word_pos[tok] = pos_counts[tok].most_common(1)[0][0]
+        else:
+            word_pos[tok] = "OTHER"
+
+    pos_colors = {
+        "NOUN": ColorPalette.MAIN_PALLETE[2],   # green-ish
+        "VERB": ColorPalette.MAIN_PALLETE[1],   # blue-ish
+        "ADJ":  ColorPalette.MAIN_PALLETE[0],   # purple
+        "OTHER": "#95a5a6",                     # neutral gray
+    }
+
+    wc = WordCloud(
+        width=1200,
+        height=600,
+        background_color="white"
+    ).generate_from_frequencies(freq_dict)
+
+    def pos_color_func(word, *args, **kwargs):
+        pos = word_pos.get(word, "OTHER")
+        return pos_colors.get(pos, pos_colors["OTHER"])
+
+    wc = wc.recolor(color_func=pos_color_func)
+
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation="bilinear")
+    plt.axis("off")
+    if title:
+        plt.title(title)
+    plt.show()
+
+    return wc
+
+
+# =============================================================================
+# tree maps
+# =============================================================================
+def treemap_chart(data: pd.DataFrame, path_col: list, value_col: str, title: str) -> None:
+
+    fig = px.treemap(
+        data,
+        path=path_col,
+        values=value_col,
+        color=value_col,
+        color_continuous_scale="Viridis",
+        title=title
+    )
+
+    fig.update_traces(
+        texttemplate="%{label}",
+        textfont=dict(size=16),
+        hovertemplate="<b>%{label}</b><br>frequency=%{value}<extra></extra>"
+    )
+
+    fig.update_layout(
+        width=1200,
+        height=700,
+        margin=dict(t=50, l=25, r=25, b=25),
+        coloraxis_colorbar=dict(
+            title=dict(text="Frequency", side="right")
+        )
+    )
+
+    fig.show()
+
+
+
+
+def build_pos_token_freq(token_series, pos_series):
+    """
+    Build a table: POS | token | frequency
+    """
+    freq = defaultdict(Counter)
+
+    for tokens, tags in zip(token_series, pos_series):
+        if not isinstance(tokens, (list, tuple)) or not isinstance(tags, (list, tuple)):
+            continue
+
+        for tok, tag in zip(tokens, tags):
+            # coarse POS mapping (same as wordcloud_by_pos)
+            if tag.startswith("N"):
+                pos_group = "NOUN"
+            elif tag.startswith("V"):
+                pos_group = "VERB"
+            elif tag.startswith("J"):
+                pos_group = "ADJ"
+            else:
+                pos_group = "OTHER"
+
+            freq[pos_group][tok] += 1
+
+    # Convert to DataFrame
+    rows = []
+    for pos_group, token_counter in freq.items():
+        for tok, count in token_counter.items():
+            rows.append([pos_group, tok, count])
+
+    df = pd.DataFrame(rows, columns=["pos", "token", "frequency"])
+    df = df.sort_values(by="frequency", ascending=False)
+
+    return df
+
+
+
+
+
+# =============================================================================
+# 
+# =============================================================================
+
 
 def most_common_words(df, text_col="text", category_col=None, top_n=20):
     """
@@ -505,3 +818,115 @@ def plot_term_frequency(df, nr_terms, df_name, show=True):
 
     return fig
 
+# =============================================================================
+# CO-OCCURRENCE MATRIX FROM TOKENS
+# =============================================================================
+
+def build_cooccurrence_matrix_tokens(token_series, top_n=200):
+    """
+    Builds a term-term co-occurrence matrix from a Series of token lists.
+    Matches the professor's Week 4/5 co-occurrence method:
+    - uses frequent tokens only (top_n)
+    - counts co-occurrence within each review (no TF-IDF)
+    """
+
+    from collections import Counter, defaultdict
+    import numpy as np
+    import pandas as pd
+
+    # 1) Count frequencies
+    freq_counter = Counter()
+    for tokens in token_series:
+        if isinstance(tokens, (list, tuple)):
+            freq_counter.update(tokens)
+
+    # 2) Select vocab of top-N frequent tokens
+    vocab = [w for w, _ in freq_counter.most_common(top_n)]
+    vocab_index = {w: i for i, w in enumerate(vocab)}
+
+    # 3) Initialise matrix
+    cooc_matrix = np.zeros((top_n, top_n), dtype=int)
+
+    # 4) Build co-occurrence counts (per review)
+    for tokens in token_series:
+        if not isinstance(tokens, (list, tuple)):
+            continue
+
+        # Keep only tokens in vocab
+        filtered = [w for w in tokens if w in vocab_index]
+        unique = set(filtered)  # professor simplification: set() to avoid double counting
+
+        for w1 in unique:
+            i = vocab_index[w1]
+            for w2 in unique:
+                if w1 != w2:
+                    j = vocab_index[w2]
+                    cooc_matrix[i, j] += 1
+
+    # 5) Build DataFrame
+    cooc_df = pd.DataFrame(cooc_matrix, index=vocab, columns=vocab)
+    return cooc_df
+
+
+def plot_cooccurrence_heatmap(cooc_df, top_n=40):
+    top_words = cooc_df.sum(axis=1).head(top_n).index
+    filtered = cooc_df.loc[top_words, top_words]
+
+    mask = np.triu(np.ones_like(filtered, dtype=bool))
+
+    plt.figure(figsize=(18, 18))
+    sns.heatmap(
+        filtered,
+        cmap="YlGnBu",
+        mask=mask,
+        square=True
+    )
+    plt.title(f"Co-occurrence Heatmap (Top {top_n} words)")
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_cooccurrence_network(cooc_df, top_n=25, min_weight=50):
+    """
+    Cleaner co-occurrence network:
+    - Uses only top_n most frequent words
+    - Removes weak co-occurrences (< min_weight)
+    - Produces a graph similar to the professor’s
+    """
+    # Select words
+    words = cooc_df.sum(axis=1).sort_values(ascending=False).head(top_n).index
+    filtered = cooc_df.loc[words, words]
+
+    G = nx.Graph()
+
+    # Add nodes with size = frequency
+    for w in words:
+        G.add_node(w, size=filtered.loc[w].sum())
+
+    # Add only strong edges
+    for w1 in words:
+        for w2 in words:
+            if w1 >= w2:
+                continue
+            weight = filtered.loc[w1, w2]
+            if weight >= min_weight:   # <<<<<<<<<< filter weak connections
+                G.add_edge(w1, w2, weight=weight)
+
+    # Layout
+    plt.figure(figsize=(14, 12))
+    pos = nx.spring_layout(G, k=1.8, seed=42)  # more spacing
+
+    # Edge widths
+    edge_widths = [0.02 * G[u][v]['weight'] for u, v in G.edges()]
+
+    # Node sizes
+    node_sizes = [data['size'] * 0.1 for _, data in G.nodes(data=True)]
+
+    # Draw
+    nx.draw_networkx_edges(G, pos, width=edge_widths, alpha=0.25, edge_color="gray")
+    nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color="#7ec0ee")
+    nx.draw_networkx_labels(G, pos, font_size=12, font_weight="bold")
+
+    plt.title(f"Clean Co-occurrence Network (Top {top_n} words)")
+    plt.axis("off")
+    plt.show()
