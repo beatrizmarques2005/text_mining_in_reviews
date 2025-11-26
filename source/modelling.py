@@ -73,3 +73,15 @@ class HermeticClassifier(ClassifierMixin, BaseEstimator):
 
         return y_pred
     
+
+def fold_score_calculator(y_pred, y_test, verbose=False):
+    
+    #6. Compute the binary classification scores (accuracy, precision, recall, F1, AUC) for the fold.
+    acc = metrics.accuracy_score(y_test, y_pred)
+    prec = metrics.precision_score(y_test, y_pred, average="weighted")
+    recall = metrics.recall_score(y_test, y_pred, average="weighted")
+    f1 = metrics.f1_score(y_test, y_pred, average="weighted")
+
+    if verbose == True:
+        print("Accuracy: {} \nPrecision: {} \nRecall: {} \nF1: {}".format(acc,prec,recall,f1))
+    return (acc, prec, recall, f1)
