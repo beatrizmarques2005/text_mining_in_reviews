@@ -1,14 +1,16 @@
-"""
+'''
 Modelling Module
 ---------------------------------------------------
 
-Reusable classes/functions for model training and prediction (e.g., a base Classifier class, functions to train common ML models).
+Reusable classes/functions for model training and prediction (e.g., a base Classifier class, functions to train common ML models).'''
 
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
+from sklearn import metrics
+from gensim.models.doc2vec import TaggedDocument
 
-"""
+
 
 class HermeticClassifier(ClassifierMixin, BaseEstimator):
 
