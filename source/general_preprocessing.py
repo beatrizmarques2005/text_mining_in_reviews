@@ -43,73 +43,73 @@ from deep_translator import GoogleTranslator
 # --- MainPipeline ---
 from sklearn.base import BaseEstimator
 
+
+import re
+import emoji
+
+
 # ------------------------------------------------------------------------------
 # REGEX CLEANER
 # ------------------------------------------------------------------------------
+
+import re
+import emoji
 
 def regex_cleaner(raw_text,
                   no_emojis=True,
                   no_hashtags=True,
                   hashtag_retain_words=True,
                   no_newlines=True,
-                  no_urls=True,
+                  no_urls=True,   # <-- new option
                   no_punctuation=True):
     """
     Cleans raw text using regular expressions.
-
-    Parameters
-    ----------
-    raw_text : str
-        The input text to clean.
-    no_emojis : bool, optional
-        Remove emojis from text.
-    no_hashtags : bool, optional
-        Remove hashtags and @mentions.
-    hashtag_retain_words : bool, optional
-        Retain words in hashtags if True (e.g., "#great" → "great").
-    no_newlines : bool, optional
-        Replace newlines with spaces.
-    no_urls : bool, optional
-        Remove URLs.
-    no_punctuation : bool, optional
-        Remove punctuation, keeping apostrophes that aid tokenization.
-
-    Returns
-    -------
-    str
-        Cleaned text.
     """
 
     patterns = {
         "newline": r"(\n)",
         "hashtags_at": r"([#@])",
         "hashtags_ats_word": r"([#@]\w+)",
-        "emojis": r"([\u2600-\u27FF])",
-        "url": r"(?:\w+:/{2})?(?:www)?(?:\.)?([a-z\d]+)(?:\.)([a-z\d\.]{2,})(/[a-zA-Z/\d]+)?",
+        "url": r"(?:\w+:/{2})?(?:www\.)?([a-z\d\-]+)\.(?:[a-z\d\.]{2,})(?:/[a-zA-Z/\d]*)?",
         "punctuation": r"[\u0021-\u0026\u0028-\u002C\u002E-\u002F\u003A-\u003F\u005B-\u005F\u2010-\u2028\ufeff`]+",
         "apostrophe": r"'(?=[A-Z\s])|(?<=[a-z\.\?\!\,\s])'",
         "hifen": r'\s*-\s*',
+        "more_spaces": r'\s+'
     }
 
-    text = raw_text
+    text = str(raw_text) if raw_text is not None else ""
 
+    # Translate emojis into tokens
     if no_emojis:
-        text = re.sub(patterns["emojis"], "", text)
+        text = emoji.demojize(text, delimiters=("emoji_", ""))
+
+    # Handle hashtags
     if no_hashtags:
         if hashtag_retain_words:
             text = re.sub(patterns["hashtags_at"], "", text)
         else:
-            text = re.sub(patterns["hashtags_ats_word"], "", text)
+            text = re.sub(patterns["hashtags_ats_word"], r"\1", text)
+
+    # Replace newlines
     if no_newlines:
         text = re.sub(patterns["newline"], " ", text)
+
+    # Normalize URLs → keep only domain entity
     if no_urls:
-        text = re.sub(patterns["url"], "", text)
+        text = re.sub(patterns["url"], r"\1", text)  
+        # Example: "www.instagram.com" → "instagram"
+
+    # Remove punctuation
     if no_punctuation:
         text = re.sub(patterns["punctuation"], "", text)
         text = re.sub(patterns["apostrophe"], "", text)
-        text = re.sub(patterns["hifen"], ' ', text) # no hifens
+        text = re.sub(patterns["hifen"], " ", text)
 
+    # Clean up extra spaces
+    text = re.sub(patterns["more_spaces"], " ", text)
+    
     return text.strip()
+
 
 def repeated_chars(token, max_repeat=2):
     """
