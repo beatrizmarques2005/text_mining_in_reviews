@@ -4,7 +4,6 @@ Text Preprocessing Module
 
 This module provides a flexible text preprocessing pipeline for text mining tasks,
 such as classification, sentiment analysis, and co-occurrence analysis.
-
 """
 
 # --- Standard Libraries ---
@@ -20,12 +19,14 @@ from tqdm import tqdm
 
 # --- NLP / Text Processing ---
 import nltk
+import emoji
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import words
 from unidecode import unidecode
 
 # --- Machine Learning / Feature Extraction ---
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.base import BaseEstimator
 
 # --- Visualization ---
 import plotly.express as px
@@ -40,20 +41,26 @@ import langid
 # --- Translation ---
 from deep_translator import GoogleTranslator
 
-# --- MainPipeline ---
-from sklearn.base import BaseEstimator
+# --- Optional Safe Imports ---
+try:
+    from langdetect import detect as ld_detect
+except Exception:
+    ld_detect = None
 
+try:
+    import langid
+except Exception:
+    langid = None
 
-import re
-import emoji
+try:
+    from deep_translator import GoogleTranslator
+except Exception:
+    GoogleTranslator = None
 
 
 # ------------------------------------------------------------------------------
 # REGEX CLEANER
 # ------------------------------------------------------------------------------
-
-import re
-import emoji
 
 def regex_cleaner(raw_text,
                   no_emojis=True,
@@ -110,6 +117,9 @@ def regex_cleaner(raw_text,
     
     return text.strip()
 
+# ------------------------------------------------------------------------------
+# CORRECTING WRONGLY WRITTEN WORDS
+# ------------------------------------------------------------------------------
 
 def repeated_chars(token, max_repeat=2):
     """
@@ -154,8 +164,8 @@ def vectorize_texts(
     texts, 
     vectorizer_type="tfidf", 
     max_features=1000, 
-    ngram_range=(1, 1),  # default: unigrams
-    use_bow=False         # if True, use plain Bag-of-Words (CountVectorizer)
+    ngram_range=(1, 1),     # default: unigrams
+    use_bow=False           # if True, use plain Bag-of-Words (CountVectorizer)
 ):
     """
     Vectorizes text data using TF-IDF, Count Vectorizer, or N-grams.
@@ -482,81 +492,88 @@ def cooccurrence_matrix(vectorized_df, sentence_cooc=False, window_size=5):
     return cooc_df
 
 #---------------------------------------------------------------------------------------------------
-# NON-ENGLISH-REVIEWS
+# TRANSLATING NON-ENGLISH-REVIEWS
 #---------------------------------------------------------------------------------------------------
 
-# Set seed for reproducibility
-DetectorFactory.seed = 0
-
-def extract_non_english_reviews_langdetect(df, text_column="review"):
+def process_and_translate_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
     """
-    Detects the language of each review and returns a DataFrame
-    containing only non-English reviews with their original indices.
+    Detects language of reviews, translates non-English rows to English,
+    and prepares unified columns for downstream pipeline processing.
 
     Parameters
     ----------
-    df : pd.DataFrame
-        Input DataFrame containing text data.
-    text_column : str, default='review'
-        Name of the column that holds the review text.
+    dataset : pd.DataFrame
+        Input DataFrame with a column '00_before_translating_cleaning'.
 
     Returns
     -------
-    non_english_df : pd.DataFrame
-        DataFrame with columns: ['index', text_column, 'language']
-        containing only non-English reviews.
+    pd.DataFrame
+        Same DataFrame with added columns:
+        - 'lang_langdetect'
+        - 'lang_langid'
+        - 'needs_translation'
+        - 'text_translated'
+        - 'text_for_pipeline'
     """
 
-    # Inner function for safe detection
-    def detect_language(text):
+    # --- Safe language detection helpers ---
+    def safe_detect_lang_langdetect(text):
+        if ld_detect is None:
+            return None
         try:
-            return detect(str(text))
-        except LangDetectException:
-            return "unknown"
+            return ld_detect(str(text))
+        except Exception:
+            return None
 
-    # Detect language for each review
-    df["language"] = df[text_column].apply(detect_language)
+    def safe_detect_lang_langid(text):
+        if langid is None:
+            return None
+        try:
+            return langid.classify(str(text))[0]
+        except Exception:
+            return None
 
-    # Filter non-English rows
-    non_english_df = df[df["language"] != "en"].copy()
+    # --- Run detection ---
+    dataset['lang_langdetect'] = dataset['00_before_translating_cleaning'].apply(safe_detect_lang_langdetect)
+    dataset['lang_langid'] = dataset['00_before_translating_cleaning'].apply(safe_detect_lang_langid)
 
-    # Keep original index for reference
-    non_english_df = non_english_df.reset_index()[["index", text_column, "language"]]
+    # --- Decide if translation is needed ---
+    def need_translation_row(row):
+        ld = row['lang_langdetect']
+        li = row['lang_langid']
+        if ld is None and li is None:
+            return True
+        if ld is not None and ld != 'en':
+            return True
+        if li is not None and li != 'en':
+            return True
+        return False
 
-    return non_english_df
+    dataset['needs_translation'] = dataset.apply(need_translation_row, axis=1)
 
-def extract_non_english_reviews_langid(df, text_column="review"):
-    """
-    Detects the language of each review using langid and returns
-    non-English reviews with their original indices.
-    """
-    def detect_language(text):
-        lang, _ = langid.classify(str(text))
-        return lang
-    #def detect_language(text, min_prob=0.85):
-    #    text = str(text)
-    #    lang, prob = langid.classify(text)
-    #    if prob < min_prob:
-    #        return "en"
-    #    return lang
-    # Detect language
-    df["language"] = df[text_column].apply(detect_language)
+    # --- Translator setup ---
+    translator = None
+    if GoogleTranslator is not None:
+        translator = GoogleTranslator(source='auto', target='en')
 
-    # Filter non-English rows
-    non_english_df = df[df["language"] != "en"].copy()
-    non_english_df = non_english_df.reset_index()[["index", text_column, "language"]]
+    def translate_safe(text):
+        if translator is None:
+            return str(text)
+        try:
+            return translator.translate(str(text))
+        except Exception:
+            return str(text)
 
-    return non_english_df
+    # --- Translate only where needed ---
+    dataset['text_translated'] = dataset.apply(
+        lambda r: translate_safe(r['00_before_translating_cleaning']) if r['needs_translation'] else r['00_before_translating_cleaning'],
+        axis=1
+    )
 
-#---------------------------------------------------------------------------------------------------
-# TRANSLATION TO ENGLISH
-#---------------------------------------------------------------------------------------------------
+    # --- Unified column for downstream pipeline ---
+    dataset['text_for_pipeline'] = dataset['text_translated']
 
-def translate_to_english(text):
-    try:
-        return GoogleTranslator(source='auto', target='en').translate(text)
-    except Exception:
-        return text  # fallback if translation fails
+    return dataset
 
 #---------------------------------------------------------------------------------------------------
 # FEATURE EXTRACTION FOR NER
