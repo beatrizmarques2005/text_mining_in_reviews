@@ -315,12 +315,9 @@ def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.show()
 
-
-
 # =============================================================================
 # Word Clouds
 # =============================================================================
-
 
 def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
 
@@ -407,7 +404,6 @@ def wordcloud_from_vectorized(
         plt.axis('off')
 
     return {"path": save_path, "wordcloud": wc}
-
 
 def wordcloud_from_tokens(
     token_series: pd.Series,
@@ -650,10 +646,10 @@ def wordcloud_by_pos(
 
     return wc
 
-
 # =============================================================================
 # tree maps
 # =============================================================================
+
 def treemap_chart(data: pd.DataFrame, path_col: list, value_col: str, title: str) -> None:
 
     fig = px.treemap(
@@ -681,9 +677,6 @@ def treemap_chart(data: pd.DataFrame, path_col: list, value_col: str, title: str
     )
 
     fig.show()
-
-
-
 
 def build_pos_token_freq(token_series, pos_series):
     """
@@ -719,14 +712,9 @@ def build_pos_token_freq(token_series, pos_series):
 
     return df
 
-
-
-
-
 # =============================================================================
 # 
 # =============================================================================
-
 
 def most_common_words(df, text_col="text", category_col=None, top_n=20):
     """
@@ -867,7 +855,6 @@ def build_cooccurrence_matrix_tokens(token_series, top_n=200):
     cooc_df = pd.DataFrame(cooc_matrix, index=vocab, columns=vocab)
     return cooc_df
 
-
 def plot_cooccurrence_heatmap(cooc_df, top_n=40):
     top_words = cooc_df.sum(axis=1).head(top_n).index
     filtered = cooc_df.loc[top_words, top_words]
@@ -884,7 +871,6 @@ def plot_cooccurrence_heatmap(cooc_df, top_n=40):
     plt.title(f"Co-occurrence Heatmap (Top {top_n} words)")
     plt.tight_layout()
     plt.show()
-
 
 def plot_cooccurrence_network(cooc_df, top_n=25, min_weight=50):
     """

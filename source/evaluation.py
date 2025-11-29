@@ -9,7 +9,7 @@ from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import numpy as np
 
-def compute_metrics(y_true, y_pred):
+def sentiment_analysis_metrics(y_true, y_pred):
     y_true, y_pred = np.asarray(y_true).reshape(-1), np.asarray(y_pred).reshape(-1)
     pearson_r, _ = pearsonr(y_true, y_pred)
     rmse = mean_squared_error(y_true, y_pred, squared=False)
