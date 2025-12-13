@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DistilBertModel
+from sklearn.base import clone
 
 
 
@@ -26,8 +27,8 @@ class HermeticClassifier(ClassifierMixin, BaseEstimator):
 
         X_preproc = [self.preprocessor.main_pipeline(doc) for doc in X]
 
-        self.vectorizer_ = self.vectorizer
-        X_train = self.vectorizer.fit_transform(X_preproc)
+        self.vectorizer_ = clone(self.vectorizer)
+        X_train = self.vectorizer_.fit_transform(X_preproc)
 
         if hasattr(y, "to_numpy"):
             y_train = y.to_numpy()
