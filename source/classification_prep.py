@@ -5,7 +5,7 @@ Classification Preparation Module
 Functions specific to the classification task
 
 """
-
+"""
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
@@ -73,3 +73,4 @@ class HermeticClassifier(ClassifierMixin, BaseEstimator):
         y_pred = self.classifier.predict(X_test)
 
         return y_pred
+"""
