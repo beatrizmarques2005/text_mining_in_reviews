@@ -67,3 +67,61 @@ def fold_score_calculator(y_pred, y_test, verbose=False):
 class IdentityPreprocessor:
     def main_pipeline(self, text):
         return text
+    
+import numpy as np
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class Doc2VecVectorizer(BaseEstimator, TransformerMixin):
+    def __init__(
+        self,
+        vector_size=300,
+        window=8,
+        min_count=2,
+        epochs=40,
+        dm=1,              # 1 = PV-DM, 0 = PV-DBOW
+        workers=1,         # IMPORTANT for stability
+        seed=42
+    ):
+        self.vector_size = vector_size
+        self.window = window
+        self.min_count = min_count
+        self.epochs = epochs
+        self.dm = dm
+        self.workers = workers
+        self.seed = seed
+
+    def fit(self, X, y=None):
+        self.tagged_docs_ = [
+            TaggedDocument(words=doc, tags=[i])
+            for i, doc in enumerate(X)
+        ]
+
+        self.model_ = Doc2Vec(
+            vector_size=self.vector_size,
+            window=self.window,
+            min_count=self.min_count,
+            dm=self.dm,
+            workers=self.workers,
+            seed=self.seed
+        )
+
+        self.model_.build_vocab(self.tagged_docs_)
+        self.model_.train(
+            self.tagged_docs_,
+            total_examples=len(self.tagged_docs_),
+            epochs=self.epochs
+        )
+
+        return self
+
+    def transform(self, X):
+        return np.vstack([
+            self.model_.infer_vector(doc, epochs=20)
+            for doc in X
+        ])
+
+class TokenizerPreprocessor:
+    def main_pipeline(self, text):
+        return text.split()   # replace with your real tokenizer
