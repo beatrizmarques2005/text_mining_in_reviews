@@ -124,6 +124,7 @@ class Doc2VecVectorizer(BaseEstimator, TransformerMixin):
 
 class TokenizerPreprocessor:
     def main_pipeline(self, text):
+<<<<<<< HEAD
         return text.split()   # replace with your real tokenizer
 
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
@@ -204,3 +205,6 @@ def run_multilabel_cv(X, y, models, vectorizer, preprocessor=None, n_splits=5, r
     display(leaderboard)
     
     return results_df, leaderboard
+=======
+        return text.split()   # replace with your real tokenizer
+>>>>>>> 27beec5a959c752dbb59ff241d2e922b8de66ca7
