@@ -124,87 +124,76 @@ class Doc2VecVectorizer(BaseEstimator, TransformerMixin):
 
 class TokenizerPreprocessor:
     def main_pipeline(self, text):
-<<<<<<< HEAD
         return text.split()   # replace with your real tokenizer
 
+from tqdm import tqdm  
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
-from tqdm.notebook import tqdm
 import pandas as pd
+import numpy as np
 
-def run_multilabel_cv(X, y, models, vectorizer, preprocessor=None, n_splits=5, random_state=42):
-    
+def run_single_model_cv(
+    model_instance, 
+    model_name, 
+    X, 
+    y, 
+    vectorizer, 
+    dataset_name, 
+    preprocessor=None, 
+    n_splits=5, 
+    random_state=42
+):
     if preprocessor is None:
         preprocessor = IdentityPreprocessor()
         
     mskf = MultilabelStratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    results_list = []
+    fold_metrics_list = []
 
-    # 2. Outer Loop: Iterate through each Model
-    for model_name, model_instance in tqdm(models.items(), desc="Models"):
-        print(f"\n{'='*20} MODEL: {model_name} {'='*20}")
+    print(f"\n{'='*20} TRAINING: {model_name} on {dataset_name} {'='*20}")
+
+    # The loop uses standard 'tqdm' now
+    for fold, (train_idx, test_idx) in enumerate(tqdm(mskf.split(X, y), total=n_splits, desc=f"Folds", leave=True), start=1):
         
-        # 3. Inner Loop: Iterate through Folds
-        # We assume X and y are indexable; handled inside the loop
-        for fold, (train_idx, test_idx) in enumerate(tqdm(mskf.split(X, y), total=n_splits, desc=f"Folds ({model_name})", leave=False), start=1):
-            
-            # --- Data Splitting ---
-            # Handle X (Pandas Series/DataFrame)
-            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-            
-            # Handle y (DataFrame or Numpy Array)
-            if hasattr(y, "iloc"):
-                y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-            else:
-                y_train, y_test = y[train_idx], y[test_idx]
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        
+        if hasattr(y, "iloc"):
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        else:
+            y_train, y_test = y[train_idx], y[test_idx]
 
-            # --- Instantiate Hermetic Wrapper ---
-            # We create a new instance for every fold to ensure no leakage
-            modelhermetic = HermeticClassifier(
-                preprocessor=preprocessor,
-                vectorizer=vectorizer, 
-                classifier=model_instance
-            )
+        modelhermetic = HermeticClassifier(
+            preprocessor=preprocessor,
+            vectorizer=vectorizer, 
+            classifier=model_instance
+        )
 
-            # --- Training ---
-            modelhermetic.fit(X_train, y_train)
+        modelhermetic.fit(X_train, y_train)
 
-            # --- Evaluation: TRAIN ---
-            y_train_pred = modelhermetic.predict(X_train)
-            # Utilizing your existing score calculator
-            train_acc, train_prec, train_rec, train_f1 = fold_score_calculator(
-                y_train_pred, y_train, verbose=False
-            )
+        y_train_pred = modelhermetic.predict(X_train)
+        _, _, _, train_f1 = fold_score_calculator(y_train_pred, y_train, verbose=False)
 
-            # --- Evaluation: VALIDATION ---
-            y_val_pred = modelhermetic.predict(X_test)
-            val_acc, val_prec, val_rec, val_f1 = fold_score_calculator(
-                y_val_pred, y_test, verbose=False
-            )
-            
-            # Optional: Print fold status (can comment out to reduce noise)
-            # print(f"  > Fold {fold}: Val F1 = {val_f1:.4f} (Train F1 = {train_f1:.4f})")
+        y_val_pred = modelhermetic.predict(X_test)
+        val_acc, val_prec, val_rec, val_f1 = fold_score_calculator(y_val_pred, y_test, verbose=False)
 
-            # --- Store Results ---
-            results_list.append({
-                "Model": model_name,
-                "Fold": fold,
-                "Train_F1": train_f1,
-                "Val_F1": val_f1,
-                "Val_Accuracy": val_acc,
-                "Val_Precision": val_prec,
-                "Val_Recall": val_rec
-            })
+        fold_metrics_list.append({
+            "Train_F1": train_f1,
+            "Val_F1": val_f1,
+            "Val_Accuracy": val_acc,
+            "Val_Precision": val_prec,
+            "Val_Recall": val_rec
+        })
 
-    # 4. Create Results DataFrames
-    results_df = pd.DataFrame(results_list)
+    mean_metrics = pd.DataFrame(fold_metrics_list).mean()
     
-    # 5. Aggregate Results
-    leaderboard = results_df.groupby("Model")[["Val_F1", "Val_Accuracy", "Val_Precision", "Val_Recall", "Train_F1"]].mean().sort_values("Val_F1", ascending=False)
+    model_result_df = pd.DataFrame([{
+        "Model": model_name,
+        "Preprocessing": dataset_name,
+        "Val_F1": mean_metrics["Val_F1"],
+        "Train_F1": mean_metrics["Train_F1"],
+        "Val_Accuracy": mean_metrics["Val_Accuracy"],
+        "Val_Precision": mean_metrics["Val_Precision"],
+        "Val_Recall": mean_metrics["Val_Recall"]
+    }])
     
-    print("\n\nFINAL LEADERBOARD (Ranked by Validation F1):")
-    display(leaderboard)
+    print(f"Done! {model_name} [{dataset_name}] Val F1: {mean_metrics['Val_F1']:.4f}")
     
-    return results_df, leaderboard
-=======
-        return text.split()   # replace with your real tokenizer
->>>>>>> 27beec5a959c752dbb59ff241d2e922b8de66ca7
+    return model_result_df
