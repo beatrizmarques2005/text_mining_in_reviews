@@ -45,7 +45,7 @@ class HermeticClassifier(ClassifierMixin, BaseEstimator):
         check_is_fitted(self, ['vectorizer_'])
 
         X_preproc = [self.preprocessor.main_pipeline(doc) for doc in X]
-        X_test = self.vectorizer.transform(X_preproc)
+        X_test = self.vectorizer_.transform(X_preproc)
         
         return self.classifier.predict(X_test)
     
@@ -62,56 +62,145 @@ def fold_score_calculator(y_pred, y_test, verbose=False):
         print("Accuracy: {} \nPrecision: {} \nRecall: {} \nF1: {}".format(acc,prec,recall,f1))
     return (acc, prec, recall, f1)
 
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2, reduction="mean"):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-
-    def forward(self, logits, targets):
-        # Binary cross entropy with logits
-        bce_loss = F.binary_cross_entropy_with_logits(
-            logits, targets, reduction="none"
-        )
-
-        # p = probability after sigmoid
-        probas = torch.sigmoid(logits)
-
-        # focal factor
-        focal_factor = (1 - probas) ** self.gamma
-
-        loss = self.alpha * focal_factor * bce_loss
-
-        if self.reduction == "mean":
-            return loss.mean()
-        elif self.reduction == "sum":
-            return loss.sum()
-        return loss
     
 
-class ReviewDataset(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels):
-        self.encodings = encodings
-        self.labels = labels
+class IdentityPreprocessor:
+    def main_pipeline(self, text):
+        return text
+    
+import numpy as np
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+from sklearn.base import BaseEstimator, TransformerMixin
 
-    def __getitem__(self, idx):
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        item["labels"] = torch.tensor(self.labels[idx]).float()
-        return item
+class Doc2VecVectorizer(BaseEstimator, TransformerMixin):
+    def __init__(
+        self,
+        vector_size=300,
+        window=8,
+        min_count=2,
+        epochs=40,
+        dm=1,              # 1 = PV-DM, 0 = PV-DBOW
+        workers=1,         # IMPORTANT for stability
+        seed=42
+    ):
+        self.vector_size = vector_size
+        self.window = window
+        self.min_count = min_count
+        self.epochs = epochs
+        self.dm = dm
+        self.workers = workers
+        self.seed = seed
 
-    def __len__(self):
-        return len(self.labels)
+    def fit(self, X, y=None):
+        self.tagged_docs_ = [
+            TaggedDocument(words=doc, tags=[i])
+            for i, doc in enumerate(X)
+        ]
 
-class MultiLabelBERT(nn.Module):
-    def __init__(self, num_labels):
-        super().__init__()
-        self.bert = DistilBertModel.from_pretrained("distilbert-base-uncased")
-        self.classifier = nn.Linear(768, num_labels)
+        self.model_ = Doc2Vec(
+            vector_size=self.vector_size,
+            window=self.window,
+            min_count=self.min_count,
+            dm=self.dm,
+            workers=self.workers,
+            seed=self.seed
+        )
 
-    def forward(self, input_ids, attention_mask, labels=None):
-        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-        cls = outputs.last_hidden_state[:, 0, :]  # CLS token
-        logits = self.classifier(cls)
-        return logits
+        self.model_.build_vocab(self.tagged_docs_)
+        self.model_.train(
+            self.tagged_docs_,
+            total_examples=len(self.tagged_docs_),
+            epochs=self.epochs
+        )
 
+        return self
+
+    def transform(self, X):
+        return np.vstack([
+            self.model_.infer_vector(doc, epochs=20)
+            for doc in X
+        ])
+
+class TokenizerPreprocessor:
+    def main_pipeline(self, text):
+        return text.split()   # replace with your real tokenizer
+
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+from tqdm.notebook import tqdm
+import pandas as pd
+
+def run_multilabel_cv(X, y, models, vectorizer, preprocessor=None, n_splits=5, random_state=42):
+    
+    if preprocessor is None:
+        preprocessor = IdentityPreprocessor()
+        
+    mskf = MultilabelStratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    results_list = []
+
+    # 2. Outer Loop: Iterate through each Model
+    for model_name, model_instance in tqdm(models.items(), desc="Models"):
+        print(f"\n{'='*20} MODEL: {model_name} {'='*20}")
+        
+        # 3. Inner Loop: Iterate through Folds
+        # We assume X and y are indexable; handled inside the loop
+        for fold, (train_idx, test_idx) in enumerate(tqdm(mskf.split(X, y), total=n_splits, desc=f"Folds ({model_name})", leave=False), start=1):
+            
+            # --- Data Splitting ---
+            # Handle X (Pandas Series/DataFrame)
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            
+            # Handle y (DataFrame or Numpy Array)
+            if hasattr(y, "iloc"):
+                y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+            else:
+                y_train, y_test = y[train_idx], y[test_idx]
+
+            # --- Instantiate Hermetic Wrapper ---
+            # We create a new instance for every fold to ensure no leakage
+            modelhermetic = HermeticClassifier(
+                preprocessor=preprocessor,
+                vectorizer=vectorizer, 
+                classifier=model_instance
+            )
+
+            # --- Training ---
+            modelhermetic.fit(X_train, y_train)
+
+            # --- Evaluation: TRAIN ---
+            y_train_pred = modelhermetic.predict(X_train)
+            # Utilizing your existing score calculator
+            train_acc, train_prec, train_rec, train_f1 = fold_score_calculator(
+                y_train_pred, y_train, verbose=False
+            )
+
+            # --- Evaluation: VALIDATION ---
+            y_val_pred = modelhermetic.predict(X_test)
+            val_acc, val_prec, val_rec, val_f1 = fold_score_calculator(
+                y_val_pred, y_test, verbose=False
+            )
+            
+            # Optional: Print fold status (can comment out to reduce noise)
+            # print(f"  > Fold {fold}: Val F1 = {val_f1:.4f} (Train F1 = {train_f1:.4f})")
+
+            # --- Store Results ---
+            results_list.append({
+                "Model": model_name,
+                "Fold": fold,
+                "Train_F1": train_f1,
+                "Val_F1": val_f1,
+                "Val_Accuracy": val_acc,
+                "Val_Precision": val_prec,
+                "Val_Recall": val_rec
+            })
+
+    # 4. Create Results DataFrames
+    results_df = pd.DataFrame(results_list)
+    
+    # 5. Aggregate Results
+    leaderboard = results_df.groupby("Model")[["Val_F1", "Val_Accuracy", "Val_Precision", "Val_Recall", "Train_F1"]].mean().sort_values("Val_F1", ascending=False)
+    
+    print("\n\nFINAL LEADERBOARD (Ranked by Validation F1):")
+    display(leaderboard)
+    
+    return results_df, leaderboard
