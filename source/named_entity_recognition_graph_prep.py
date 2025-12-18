@@ -63,15 +63,15 @@ def extract_entities(tokens, labels):
 # ---------------------------------------------------
 
 # Adjust these to match your real labels:
-DISH_TAGS = {"food", "dish", "meal"}
+# DISH_TAGS = {"food", "dish", "meal"}
 LOC_TAGS = {"loc", "geo", "car", "gpe"}        
-CUISINE_TAGS = {"grp", "norp"}                 # grp might include ethnicities
+CUISINE_TAGS = {"grp"}  # grp might include ethnicities
 
 def classify_entity(ent_type, location_included):
     et = ent_type.lower()
-    if et in DISH_TAGS:
-        return "DISH"
-    elif location_included and et in LOC_TAGS:
+    # if et in DISH_TAGS:
+    #     return "DISH"
+    if location_included and et in LOC_TAGS:
         return "LOC"
     elif et in CUISINE_TAGS:
         return "CUISINE"
