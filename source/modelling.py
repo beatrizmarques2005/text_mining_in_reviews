@@ -14,6 +14,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DistilBertModel
 from sklearn.base import clone
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm  
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+import numpy as np
 
 
 
@@ -126,11 +132,6 @@ class TokenizerPreprocessor:
     def main_pipeline(self, text):
         return text.split()   # replace with your real tokenizer
 
-from tqdm import tqdm  
-from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
-import pandas as pd
-import numpy as np
-
 def run_single_model_cv(
     model_instance, 
     model_name, 
@@ -197,3 +198,41 @@ def run_single_model_cv(
     print(f"Done! {model_name} [{dataset_name}] Val F1: {mean_metrics['Val_F1']:.4f}")
     
     return model_result_df
+
+
+def plot_top_features(model, vocabulary, class_labels, top_n=8):
+    
+    n_classes = len(class_labels)
+    ncols = 3
+    nrows = (n_classes // ncols) + (1 if n_classes % ncols > 0 else 0)
+   
+    fig, axes = plt.subplots(nrows, ncols, figsize=(15, nrows * 3.5))
+    axes = axes.flatten()
+ 
+    for i, label in enumerate(class_labels):
+
+        coefs = model.estimators_[i].coef_.flatten()
+  
+        top_positive_indices = coefs.argsort()[-top_n:]
+        top_negative_indices = coefs.argsort()[:top_n]
+       
+        top_indices = list(top_positive_indices) + list(top_negative_indices)
+        top_coefs = coefs[top_indices]
+        top_words = [vocabulary[j] for j in top_indices]
+       
+        # Plot
+        ax = axes[i]
+        colors = ['red' if c < 0 else 'blue' for c in top_coefs]
+        ax.barh(top_words, top_coefs, color=colors)
+        ax.set_title(f"{label}", fontsize=10, fontweight='bold')
+        ax.set_xlabel("Weight")
+   
+    # Hide empty subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].axis('off')
+       
+    plt.tight_layout()
+    plt.show()
+
+def is_false_negative(row):
+    return (target_category in row['True_Labels']) and (target_category not in row['Predicted_Labels'])
