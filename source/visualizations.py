@@ -712,10 +712,6 @@ def build_pos_token_freq(token_series, pos_series):
 
     return df
 
-# =============================================================================
-# 
-# =============================================================================
-
 def most_common_words(df, text_col="text", category_col=None, top_n=20):
     """
     Find the most common words overall and optionally by category.

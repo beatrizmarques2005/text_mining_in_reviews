@@ -4,10 +4,6 @@ Modelling Module
 
 Reusable classes/functions for model training and prediction (e.g., a base Classifier class, functions to train common ML models).'''
 
-# =============================================================================
-# IMPORTS
-# =============================================================================
-
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import unique_labels
@@ -27,9 +23,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 
-# =============================================================================
-# CLASSES
-# =============================================================================
 
 class HermeticClassifier(ClassifierMixin, BaseEstimator):
     """
@@ -135,10 +128,6 @@ class TokenizerPreprocessor:
             A list of string tokens.
         """
         return text.split() 
-
-# =============================================================================
-# EVALUATION & UTILITY FUNCTIONS
-# =============================================================================
 
 def fold_score_calculator(y_pred, y_test, verbose=False):
     """
@@ -310,7 +299,6 @@ def compute_label_language_similarity(
     for label in y_df.columns:
         texts_for_label = X.loc[y_df[label] == 1]
 
-        # Handle rare / empty labels safely
         combined_text = " ".join(texts_for_label) if len(texts_for_label) > 0 else ""
 
         label_texts.append({
@@ -358,23 +346,12 @@ def merge_labels(y_df, merges):
 
     return y_df
 
-def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapper_class):
-    """
-    Performs a comprehensive cross-validation evaluation of a model, providing
-    both global and per-category performance metrics.
-
-    Returns
-    -------
-    global_avg : pd.DataFrame
-        Average global metrics (F1, Accuracy, Precision, Recall) across folds.
-    cat_avg : pd.DataFrame
-        Detailed metrics broken down by category, including overfitting gap.
-    """
+def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, wrapper_class):
+    
     rows_categories = []
     rows_global = []
 
-    print(f"Running full analysis on: {type(classifier).__name__}...")
-
+    # Iterate Folds
     for fold, (train_idx, test_idx) in enumerate(cv.split(X, y), start=1):
 
         if hasattr(X, "iloc"):
@@ -392,10 +369,12 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
             classifier=classifier
         )
 
+        # --- Fit & Predict ---
         hermetic_model.fit(X_train, y_train)
         y_val_pred = hermetic_model.predict(X_test)
         y_train_pred = hermetic_model.predict(X_train)
 
+        # --- Metrics ---
         val_accuracy = accuracy_score(y_test, y_val_pred)
         
         val_report = classification_report(
@@ -405,7 +384,7 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
             y_train, y_train_pred, target_names=list(y.columns), zero_division=0, output_dict=True
         )
 
-        for label in mlb.classes_:
+        for label in list(y.columns):
             rows_categories.append({
                 "Fold": fold,
                 "Category": label,
@@ -449,5 +428,5 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
         display(cat_avg)
     except NameError:
         print(cat_avg)
-
+        
     return global_avg, cat_avg

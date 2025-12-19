@@ -7,10 +7,6 @@ from collections import defaultdict, Counter
 import pkgutil
 from jinja2 import Template
 
-# ---------------------------------------------------
-# 1. Decode BIO NER tags into entity spans
-# ---------------------------------------------------
-
 def extract_entities(tokens, labels):
     """
     Robustly extracts entities from BIO-tagged tokens.
@@ -53,10 +49,6 @@ def extract_entities(tokens, labels):
 
     return entities
 
-# ---------------------------------------------------
-# 2. Extract DISH + LOCATION + CUISINE entities
-# ---------------------------------------------------
-
 LOC_TAGS = {"loc", "geo", "car", "gpe"}        
 CUISINE_TAGS = {"grp"}
 
@@ -69,11 +61,7 @@ def classify_entity(ent_type, location_included):
         return "CUISINE"
     else:
         return None  # ignore others
-    
-# -----------------------------------------------------------
-# 3. SPARSIFY GRAPH (From Code 1)
-# -----------------------------------------------------------
-# This keeps only the top-K strongest connections per node to reduce clutter
+
 def sparsify_graph(graph, k=5):
     new_edges = set()
     for n in graph.nodes():
@@ -94,11 +82,6 @@ def sparsify_graph(graph, k=5):
     G_clean.remove_nodes_from(list(nx.isolates(G_clean)))
     return G_clean
 
-    
-# ---------------------------------------------------
-# 4. Community Detection (Louvain)
-# ---------------------------------------------------
-
 def community_detection(G):
     try:
         partition = community.best_partition(G, weight="weight")
@@ -107,10 +90,6 @@ def community_detection(G):
         print("Install python-louvain: pip install python-louvain")
         partition = {node: 0 for node in G.nodes()}  # fallback
         return partition
-    
-# ---------------------------------------------------
-# 5. Infer Names and Create DataFrame
-# ---------------------------------------------------
     
 def infer_group_name(nodes, graph, location_included):
     """

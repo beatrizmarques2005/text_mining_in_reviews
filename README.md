@@ -1,6 +1,6 @@
 # Straining the Great Southern Melting Pot
 
-*This README provides an overview of the repository structure. Since only a powerpoint presentation was required for this assignment, the README serves as a brief guide to explain the purpose and contents of each folder.*
+*This README provides an overview of the repository structure. Since a report was required for this assignment, the README serves as a brief guide to explain the purpose and contents of each folder.*
 
 
 ## Repository Structure
@@ -9,7 +9,7 @@
 ├── data/
 │   ├── 00_atlanta_restaurant_slice_2023.csv
 |   ├── 01_atlanta_restaurant_slice_2023_new_features.csv
-|   ├── 02_atlanta_restaurant_slice_2023_tranlated.csv
+|   ├── 02_atlanta_restaurant_slice_2023_translated.csv
 |   └── 03_atlanta_restaurant_slice_2023_translated_corrected_tokens.csv  
 ├── notebooks/
 │   ├── 01_data_understanding.ipynb

@@ -5,10 +5,6 @@ Evaluation Module
 Functions and classes to evaluate model performance (e.g., accuracy, precision, recall, F1-score, confusion matrix visualization).
 """
 
-# =============================================================================
-# IMPORTS
-# =============================================================================
-
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import numpy as np

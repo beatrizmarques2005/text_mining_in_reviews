@@ -85,10 +85,6 @@ class MainPipeline(BaseEstimator):
         self.pos_tags_list = pos_tags_list
         self.tokenized_output = tokenized_output
 
-
-    # ---------------------------------------------
-    # 1. Regex Cleaner
-    # ---------------------------------------------
     def regex_cleaner(self, raw_text):
         """
         Cleans text with regex: emojis, hashtags, URLs, newlines, punctuation.
@@ -128,9 +124,6 @@ class MainPipeline(BaseEstimator):
         text = re.sub(r'\s+', " ", text).strip()
         return text
 
-    # ---------------------------------------------
-    # 2. Repeated Character Reduction
-    # ---------------------------------------------
     @staticmethod
     def repeated_chars(token, max_repeat=2):
         """
@@ -140,9 +133,6 @@ class MainPipeline(BaseEstimator):
         """
         return re.sub(r'(.)\1{%d,}' % max_repeat, r'\1' * max_repeat, token)
 
-    # ---------------------------------------------
-    # 3. Lemmatization
-    # ---------------------------------------------
     def lemmatize_all(self, token):
         """
         Lemmatize token with multiple POS tags.
@@ -152,9 +142,6 @@ class MainPipeline(BaseEstimator):
             token = lemmatizer.lemmatize(token, pos)
         return token
 
-    # ---------------------------------------------
-    # 4. Main Text Pipeline
-    # ---------------------------------------------
     def main_pipeline(self, raw_text, stemmed=False, treat_repeated_chars=False):
         """
         Full preprocessing pipeline: cleaning, tokenization, stopwords,
@@ -209,9 +196,6 @@ class MainPipeline(BaseEstimator):
 
         return TreebankWordDetokenizer().detokenize(tokens)
 
-    # ---------------------------------------------
-    # 5. Vectorization
-    # ---------------------------------------------
     @staticmethod
     def vectorize_texts(texts, vectorizer_type="tfidf", max_features=1000, ngram_range=(1, 1), vector_size=100):
         """
@@ -239,9 +223,6 @@ class MainPipeline(BaseEstimator):
         else:
             raise ValueError("Choose 'tfidf', 'count', or 'doc2vec'")
 
-    # ---------------------------------------------
-    # 6. Co-occurrence Matrix
-    # ---------------------------------------------
     @staticmethod
     def cooccurrence_matrix(vectorized_df):
         """
@@ -265,9 +246,6 @@ class MainPipeline(BaseEstimator):
                          .reindex(cooc_df.sum().sort_values(ascending=False).index, axis=1)
         return cooc_df
 
-    # ---------------------------------------------
-    # 7. Translation & Language Detection
-    # ---------------------------------------------
     @staticmethod
     def process_and_translate_dataset(dataset: pd.DataFrame, text_column: str = '00_before_translating_cleaning') -> pd.DataFrame:
         """
@@ -317,9 +295,7 @@ class MainPipeline(BaseEstimator):
         dataset['text_for_pipeline'] = dataset['text_translated']
         return dataset
 
-    # ---------------------------------------------
-    # 8. NER Feature Extraction
-    # ---------------------------------------------
+
     @staticmethod
     def word2features(token_list, POS_list, i):
         """
@@ -470,10 +446,8 @@ def correct_tokens_column(dataset, token_col='normalized_tokens'):
     dataset['words_corrected'] = dataset[token_col].apply(
         lambda tokens: [correct_word(w, vocab, word_counts) for w in tokens]
     )
-<<<<<<< HEAD
+
     return dataset
-<<<<<<< HEAD
-=======
 
 from collections import Counter
 
@@ -520,8 +494,3 @@ def correct_tokens_column_string(
     )
 
     return dataset
-
->>>>>>> e598bcf2fa0a0c6ecaefd501ce0a590d780d052d
-=======
-    return dataset
->>>>>>> filipe
