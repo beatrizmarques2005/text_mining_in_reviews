@@ -122,7 +122,7 @@ def community_detection(G):
 # 5. Infer Names and Create DataFrame
 # ---------------------------------------------------
     
-def infer_cluster_name(nodes, graph, location_included):
+def infer_group_name(nodes, graph, location_included):
     """
     Infers a name for a cluster based on the importance (weighted degree)
     of its constituent nodes.
