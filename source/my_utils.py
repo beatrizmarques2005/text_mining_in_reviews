@@ -59,7 +59,6 @@ def export_dataset(data: pd.DataFrame, path: str, name: str, format: str = 'csv'
 
     full_path = f"{path}/{name}.{format}"
 
-    # Check if the file exists and remove it if it does
     if os.path.exists(full_path):
         os.remove(full_path)
 
