@@ -58,4 +58,3 @@ def textblob_wrapper(user_review):
             "polarity": float(sentiment.polarity),
             "subjectivity": float(sentiment.subjectivity),
         }
-

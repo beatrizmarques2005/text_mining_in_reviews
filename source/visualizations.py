@@ -7,15 +7,9 @@ All charts follow a shared visual language based on the viridis palette
 and minimal typography for visual harmony across the report.
 """
 
-# =============================================================================
-# IMPORTS
-# =============================================================================
-
 import re
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict, Counter
-import networkx as nx
-from tqdm import tqdm
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -28,7 +22,6 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import seaborn as sns
 import nltk
-
 
 # =============================================================================
 # VISUAL STYLE CONFIGURATION
@@ -374,25 +367,20 @@ def wordcloud_from_vectorized(
         Keys: 'path', 'freq_dict', 'wordcloud'
     """
 
-    # Convert ndarray to DataFrame if needed
     if isinstance(vectorized_df, np.ndarray):
         vectorized_df = pd.DataFrame(vectorized_df, columns=[f"token_{i}" for i in range(vectorized_df.shape[1])])
 
-    # Aggregate token counts/weights across rows
     scores = vectorized_df.mean(axis=0)
 
-    # Take top N tokens
     top_scores = scores.sort_values(ascending=False).head(top_n)
     freq_dict = {str(tok): float(val) for tok, val in top_scores.items() if float(val) > 0}
 
     if not freq_dict:
         raise ValueError("No positive token frequencies found to build a word cloud.")
 
-    # Generate WordCloud
     wc = WordCloud(width=800, height=400, background_color="white", colormap="viridis")
     wc.generate_from_frequencies(freq_dict)
 
-    # Ensure folder exists and save
     os.makedirs(folder_path, exist_ok=True)
     save_path = os.path.join(folder_path, filename)
     wc.to_file(save_path)
@@ -431,13 +419,11 @@ def wordcloud_from_tokens(
     WordCloud
         The generated WordCloud object.
     """
-    # Count tokens
     counter = Counter()
     for tokens in token_series:
         if isinstance(tokens, (list, tuple)):
             counter.update(tokens)
 
-    # Take the most common tokens
     freq_dict = dict(counter.most_common(max_words))
     if not freq_dict:
         raise ValueError("No tokens found to build a word cloud.")
@@ -481,7 +467,6 @@ def wordcloud_by_rating(
     title : str, optional
         Title for the matplotlib figure.
     """
-    # 1) Count frequencies and accumulate ratings per token
     freq_counter = Counter()
     rating_sum = defaultdict(float)
     rating_count = defaultdict(int)
@@ -499,14 +484,12 @@ def wordcloud_by_rating(
             rating_sum[tok] += rating_val
             rating_count[tok] += 1
 
-    # 2) Top words by frequency
     most_common = freq_counter.most_common(max_words)
     freq_dict = {tok: freq for tok, freq in most_common}
 
     if not freq_dict:
         raise ValueError("No tokens found to build rating-based word cloud.")
 
-    # 3) Average rating per token
     avg_rating = {}
     for tok, _ in most_common:
         if rating_count[tok] > 0:
@@ -516,30 +499,24 @@ def wordcloud_by_rating(
 
     global_mean = np.nanmean(list(avg_rating.values())) if avg_rating else 3.0
 
-    # 4) Base wordcloud using frequencies (size)
     wc = WordCloud(
         width=1200,
         height=600,
         background_color="white"
     ).generate_from_frequencies(freq_dict)
 
-    # 5) Colour mapping using YOUR RATINGS_PALLETE
-    palette = ColorPalette.RATINGS_PALLETE  # ["#d73027", ..., "#1a9850"]
+    palette = ColorPalette.RATINGS_PALLETE 
 
     def rating_color_func(word, *args, **kwargs):
-        r = avg_rating.get(word, global_mean)   # average rating for this word
-        # normalise rating 1–5 → 0–1
+        r = avg_rating.get(word, global_mean)  
         r_norm = (r - 1.0) / 4.0
         r_norm = min(max(r_norm, 0.0), 1.0)
-        # map to palette index 0..4
         idx = int(round(r_norm * (len(palette) - 1)))
         idx = max(0, min(idx, len(palette) - 1))
         return palette[idx]
 
-    # recolor using the rating-based colour function
     wc = wc.recolor(color_func=rating_color_func)
 
-    # 6) Plot
     plt.figure(figsize=(12, 6))
     plt.imshow(wc, interpolation="bilinear")
     plt.axis("off")
@@ -619,10 +596,10 @@ def wordcloud_by_pos(
             word_pos[tok] = "OTHER"
 
     pos_colors = {
-        "NOUN": ColorPalette.MAIN_PALLETE[2],   # green-ish
-        "VERB": ColorPalette.MAIN_PALLETE[1],   # blue-ish
-        "ADJ":  ColorPalette.MAIN_PALLETE[0],   # purple
-        "OTHER": "#95a5a6",                     # neutral gray
+        "NOUN": ColorPalette.MAIN_PALLETE[2],  
+        "VERB": ColorPalette.MAIN_PALLETE[1],   
+        "ADJ":  ColorPalette.MAIN_PALLETE[0],  
+        "OTHER": "#95a5a6",                   
     }
 
     wc = WordCloud(
@@ -647,7 +624,7 @@ def wordcloud_by_pos(
     return wc
 
 # =============================================================================
-# tree maps
+# TREE MAPS
 # =============================================================================
 
 def treemap_chart(data: pd.DataFrame, path_col: list, value_col: str, title: str) -> None:
@@ -689,7 +666,6 @@ def build_pos_token_freq(token_series, pos_series):
             continue
 
         for tok, tag in zip(tokens, tags):
-            # coarse POS mapping (same as wordcloud_by_pos)
             if tag.startswith("N"):
                 pos_group = "NOUN"
             elif tag.startswith("V"):
@@ -701,7 +677,6 @@ def build_pos_token_freq(token_series, pos_series):
 
             freq[pos_group][tok] += 1
 
-    # Convert to DataFrame
     rows = []
     for pos_group, token_counter in freq.items():
         for tok, count in token_counter.items():
@@ -718,19 +693,17 @@ def most_common_words(df, text_col="text", category_col=None, top_n=20):
     """
     vectorizer = CountVectorizer(stop_words='english')
     
-    # Overall frequencies
     X = vectorizer.fit_transform(df[text_col])
     word_counts = X.toarray().sum(axis=0)
     words = vectorizer.get_feature_names_out()
     overall_freq = pd.DataFrame({"word": words, "count": word_counts})
     overall_freq = overall_freq.sort_values(by="count", ascending=False).head(top_n)
 
-    print("🔠 Most Common Words Overall:")
+    print("Most Common Words Overall:")
     print(overall_freq)
 
-    # If category_col provided, compute by category
     if category_col:
-        print("\n📊 Most Common Words by Category:")
+        print("\nMost Common Words by Category:")
         category_results = {}
         for cat, group in df.groupby(category_col):
             X_cat = vectorizer.fit_transform(group[text_col])
@@ -739,12 +712,9 @@ def most_common_words(df, text_col="text", category_col=None, top_n=20):
             freq_df = pd.DataFrame({"word": words_cat, "count": word_counts_cat})
             freq_df = freq_df.sort_values(by="count", ascending=False).head(top_n).reset_index(drop=True)
             category_results[cat] = freq_df
-            print(f"\n➡️ {cat}:")
+            print(f"\n {cat}:")
             print(freq_df)
-        #return overall_freq, category_results
-
-    #return overall_freq
-    
+ 
 # =============================================================================
 # GEO VISUALIZATION
 # =============================================================================
@@ -782,15 +752,14 @@ def plot_restaurant_map(dataset: pd.DataFrame, color_by: str,
     fig.update_layout(mapbox_style="carto-positron", height=height)
     fig.show()
 
-#--------------------------------------------------------------------------------
+# =============================================================================
 # TERM FREQUENCY PLOTTING FUNCTION
-#--------------------------------------------------------------------------------
+# =============================================================================
 
 def plot_term_frequency(df, nr_terms, df_name, show=True):
         
-    # Create the Seaborn bar plot
     plt.figure(figsize=(10, 8))
-    sns_plot = sns.barplot(x='frequency', y='words', data=df.head(nr_terms))  # Plotting top 20 terms for better visualization
+    sns_plot = sns.barplot(x='frequency', y='words', data=df.head(nr_terms)) 
     plt.title('Top 20 Term Frequencies of {}'.format(df_name))
     plt.xlabel('Frequency')
     plt.ylabel('Words')
@@ -814,31 +783,22 @@ def build_cooccurrence_matrix_tokens(token_series, top_n=200):
     - counts co-occurrence within each review (no TF-IDF)
     """
 
-    from collections import Counter, defaultdict
-    import numpy as np
-    import pandas as pd
-
-    # 1) Count frequencies
     freq_counter = Counter()
     for tokens in token_series:
         if isinstance(tokens, (list, tuple)):
             freq_counter.update(tokens)
 
-    # 2) Select vocab of top-N frequent tokens
     vocab = [w for w, _ in freq_counter.most_common(top_n)]
     vocab_index = {w: i for i, w in enumerate(vocab)}
 
-    # 3) Initialise matrix
     cooc_matrix = np.zeros((top_n, top_n), dtype=int)
 
-    # 4) Build co-occurrence counts (per review)
     for tokens in token_series:
         if not isinstance(tokens, (list, tuple)):
             continue
 
-        # Keep only tokens in vocab
         filtered = [w for w in tokens if w in vocab_index]
-        unique = set(filtered)  # professor simplification: set() to avoid double counting
+        unique = set(filtered) 
 
         for w1 in unique:
             i = vocab_index[w1]
@@ -847,7 +807,6 @@ def build_cooccurrence_matrix_tokens(token_series, top_n=200):
                     j = vocab_index[w2]
                     cooc_matrix[i, j] += 1
 
-    # 5) Build DataFrame
     cooc_df = pd.DataFrame(cooc_matrix, index=vocab, columns=vocab)
     return cooc_df
 
@@ -866,49 +825,4 @@ def plot_cooccurrence_heatmap(cooc_df, top_n=40):
     )
     plt.title(f"Co-occurrence Heatmap (Top {top_n} words)")
     plt.tight_layout()
-    plt.show()
-
-def plot_cooccurrence_network(cooc_df, top_n=25, min_weight=50):
-    """
-    Cleaner co-occurrence network:
-    - Uses only top_n most frequent words
-    - Removes weak co-occurrences (< min_weight)
-    - Produces a graph similar to the professor’s
-    """
-    # Select words
-    words = cooc_df.sum(axis=1).sort_values(ascending=False).head(top_n).index
-    filtered = cooc_df.loc[words, words]
-
-    G = nx.Graph()
-
-    # Add nodes with size = frequency
-    for w in words:
-        G.add_node(w, size=filtered.loc[w].sum())
-
-    # Add only strong edges
-    for w1 in words:
-        for w2 in words:
-            if w1 >= w2:
-                continue
-            weight = filtered.loc[w1, w2]
-            if weight >= min_weight:   # <<<<<<<<<< filter weak connections
-                G.add_edge(w1, w2, weight=weight)
-
-    # Layout
-    plt.figure(figsize=(14, 12))
-    pos = nx.spring_layout(G, k=1.8, seed=42)  # more spacing
-
-    # Edge widths
-    edge_widths = [0.02 * G[u][v]['weight'] for u, v in G.edges()]
-
-    # Node sizes
-    node_sizes = [data['size'] * 0.1 for _, data in G.nodes(data=True)]
-
-    # Draw
-    nx.draw_networkx_edges(G, pos, width=edge_widths, alpha=0.25, edge_color="gray")
-    nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color="#7ec0ee")
-    nx.draw_networkx_labels(G, pos, font_size=12, font_weight="bold")
-
-    plt.title(f"Clean Co-occurrence Network (Top {top_n} words)")
-    plt.axis("off")
     plt.show()

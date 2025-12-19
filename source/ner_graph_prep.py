@@ -1,11 +1,14 @@
-import pandas as pd
+"""
+NER Graph Preparation Utilities
+
+Includes entity extraction, graph sparsification, community detection, and group naming.
+
+"""
+
+
 import networkx as nx
-import community.community_louvain as community  # pip install python-louvain
-from pyvis.network import Network
-import numpy as np
-from collections import defaultdict, Counter
-import pkgutil
-from jinja2 import Template
+import community.community_louvain as community
+from collections import defaultdict
 
 def extract_entities(tokens, labels):
     """
@@ -60,7 +63,7 @@ def classify_entity(ent_type, location_included):
     elif et in CUISINE_TAGS:
         return "CUISINE"
     else:
-        return None  # ignore others
+        return None
 
 def sparsify_graph(graph, k=5):
     new_edges = set()
@@ -119,20 +122,16 @@ def infer_group_name(nodes, graph, location_included):
         elif ent_type == "DISH":
             dish_scores[node] += score
             
-    # Heuristic 1: Dominant Cuisine (Highest weighted cuisine node)
     if cuisine_scores:
         best_cuisine = max(cuisine_scores, key=cuisine_scores.get)
         return f"{best_cuisine.title()} Cuisine"
     
-    # Heuristic 2: Dominant Location (Highest weighted location node)
     if location_included: 
         if loc_scores:
             best_loc = max(loc_scores, key=loc_scores.get)
             return f"{best_loc.title()} Location"
     
-    # Heuristic 3: Top Dishes (Top 2 highest weighted dishes)
     if dish_scores:
-        # Sort dishes by score descending
         sorted_dishes = sorted(dish_scores, key=dish_scores.get, reverse=True)
         top_two = [d.title() for d in sorted_dishes[:2]]
         return f"{' & '.join(top_two)} Cluster"

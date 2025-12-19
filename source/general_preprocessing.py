@@ -449,9 +449,6 @@ def correct_tokens_column(dataset, token_col='normalized_tokens'):
 
     return dataset
 
-from collections import Counter
-
-
 def correct_tokens_column_string(
     dataset,
     text_col,
