@@ -455,5 +455,5 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
         display(cat_avg)
     except NameError:
         print(cat_avg)
-        
+
     return global_avg, cat_avg
