@@ -9,50 +9,41 @@ A comprehensive text preprocessing class for NLP tasks, including:
 - Feature extraction for NER
 """
 
-# --- Standard Libraries ---
 import re
-from collections import defaultdict, Counter
-
-# --- Data Handling ---
 import numpy as np
 import pandas as pd
-
-# --- Progress Bars ---
 from tqdm import tqdm
+from collections import Counter
 
-# --- NLP / Text Processing ---
 import nltk
 import emoji
+from unidecode import unidecode
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import words
-from unidecode import unidecode
 
-# --- Machine Learning / Feature Extraction ---
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.base import BaseEstimator
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
-# --- Language Detection & Translation ---
+import Levenshtein
+from jellyfish import jaro_winkler_similarity
+
 try:
     from langdetect import detect as ld_detect
-except Exception:
+except ImportError:
     ld_detect = None
 
 try:
     import langid
-except Exception:
+except ImportError:
     langid = None
 
 try:
     from deep_translator import GoogleTranslator
-except Exception:
+except ImportError:
     GoogleTranslator = None
 
-
-import pandas as pd
-from collections import Counter
-import Levenshtein
-from jellyfish import jaro_winkler_similarity
+# nltk.download('words')
 
 class MainPipeline(BaseEstimator):
     """
@@ -420,22 +411,6 @@ class MainPipeline(BaseEstimator):
     @staticmethod
     def sent2features(token_list, POS_list):
         return [MainPipeline.word2features(token_list, POS_list, i) for i in range(len(token_list))]
-
-    @staticmethod
-    def align_bio(doc, tokens):
-        """
-        Aligns spaCy entities to tokens in BIO format.
-        """
-        bio_labels = ["O"] * len(tokens)
-        for ent in doc.ents:
-            ent_tokens = [t.text for t in ent]
-            for i in range(len(tokens)):
-                if tokens[i:i+len(ent_tokens)] == ent_tokens:
-                    bio_labels[i] = f"B-{ent.label_}"
-                    for j in range(i+1, i+len(ent_tokens)):
-                        bio_labels[j] = f"I-{ent.label_}"
-                    break
-        return bio_labels
 
     @staticmethod
     def align_bio_to_custom_tokens(text, tokens, nlp, equivalence_table):
