@@ -306,12 +306,10 @@ def merge_labels(y_df, merges):
 
     return y_df
 
-def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapper_class):
+def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, wrapper_class):
     
     rows_categories = []
     rows_global = []
-
-    print(f"Running full analysis on: {type(classifier).__name__}...")
 
     # Iterate Folds
     for fold, (train_idx, test_idx) in enumerate(cv.split(X, y), start=1):
@@ -344,14 +342,14 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
         val_accuracy = accuracy_score(y_test, y_val_pred)
         
         val_report = classification_report(
-            y_test, y_val_pred, target_names=mlb.classes_, zero_division=0, output_dict=True
+            y_test, y_val_pred, target_names=list(y.columns), zero_division=0, output_dict=True
         )
         train_report = classification_report(
-            y_train, y_train_pred, target_names=mlb.classes_, zero_division=0, output_dict=True
+            y_train, y_train_pred, target_names=list(y.columns), zero_division=0, output_dict=True
         )
 
         # Collect Category Metrics
-        for label in mlb.classes_:
+        for label in list(y.columns):
             rows_categories.append({
                 "Fold": fold,
                 "Category": label,
@@ -380,9 +378,6 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
     # Filter columns only if they exist (safe check)
     global_avg = global_avg[[c for c in cols_order if c in global_avg.columns]]
 
-    print("\n" + "="*40)
-    print(" 🌍 GLOBAL MODEL PERFORMANCE (Avg 5-Folds)")
-    print("="*40)
     try:
         display(global_avg)
     except NameError:
@@ -397,9 +392,6 @@ def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapp
     cat_avg["Overfit_Gap"] = cat_avg["Train_F1"] - cat_avg["Val_F1"]
     cat_avg = cat_avg.sort_values("Val_F1", ascending=False)
 
-    print("\n" + "="*40)
-    print(" DETAILED CATEGORY BREAKDOWN")
-    print("="*40)
     try:
         display(cat_avg)
     except NameError:
