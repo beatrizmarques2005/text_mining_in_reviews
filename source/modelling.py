@@ -19,18 +19,24 @@ import seaborn as sns
 from tqdm import tqdm  
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 import numpy as np
-
-
+import numpy as np
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
+import pandas as pd
+from sklearn.metrics import classification_report, accuracy_score
 
 class HermeticClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, preprocessor, vectorizer, classifier, **kwargs):
-        self.preprocessor = preprocessor
+    def __init__(self, vectorizer, classifier, **kwargs):
         self.vectorizer = vectorizer
         self.classifier = classifier
 
     def fit(self, X, y, **kwargs):
 
-        X_preproc = [self.preprocessor.main_pipeline(doc) for doc in X]
+        X_preproc = X
 
         self.vectorizer_ = clone(self.vectorizer)
         X_train = self.vectorizer_.fit_transform(X_preproc)
@@ -49,7 +55,7 @@ class HermeticClassifier(ClassifierMixin, BaseEstimator):
     def predict(self, X, **kwargs):
         check_is_fitted(self, ['vectorizer_'])
 
-        X_preproc = [self.preprocessor.main_pipeline(doc) for doc in X]
+        X_preproc = X
         X_test = self.vectorizer_.transform(X_preproc)
         
         return self.classifier.predict(X_test)
@@ -66,17 +72,6 @@ def fold_score_calculator(y_pred, y_test, verbose=False):
     if verbose == True:
         print("Accuracy: {} \nPrecision: {} \nRecall: {} \nF1: {}".format(acc,prec,recall,f1))
     return (acc, prec, recall, f1)
-
-    
-
-class IdentityPreprocessor:
-    def main_pipeline(self, text):
-        return text
-    
-import numpy as np
-from gensim.models import Doc2Vec
-from gensim.models.doc2vec import TaggedDocument
-from sklearn.base import BaseEstimator, TransformerMixin
 
 class Doc2VecVectorizer(BaseEstimator, TransformerMixin):
     def __init__(
@@ -137,13 +132,10 @@ def run_single_model_cv(
     X, 
     y, 
     vectorizer, 
-    dataset_name, 
-    preprocessor=None, 
+    dataset_name,
     n_splits=5, 
     random_state=42
 ):
-    if preprocessor is None:
-        preprocessor = IdentityPreprocessor()
         
     mskf = MultilabelStratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     fold_metrics_list = []
@@ -161,7 +153,6 @@ def run_single_model_cv(
             y_train, y_test = y[train_idx], y[test_idx]
 
         modelhermetic = HermeticClassifier(
-            preprocessor=preprocessor,
             vectorizer=vectorizer, 
             classifier=model_instance
         )
@@ -236,11 +227,6 @@ def plot_top_features(model, vocabulary, class_labels, top_n=8):
 def is_false_negative(row):
     return (target_category in row['True_Labels']) and (target_category not in row['Predicted_Labels'])
 
-
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import pandas as pd
 
 def compute_label_language_similarity(
     X,
@@ -319,3 +305,104 @@ def merge_labels(y_df, merges):
         y_df = y_df.drop(columns=old_labels)
 
     return y_df
+
+def evaluate_model_cv(X, y, classifier, vectorizer, cv, mlb, preprocessor, wrapper_class):
+    
+    rows_categories = []
+    rows_global = []
+
+    print(f"Running full analysis on: {type(classifier).__name__}...")
+
+    # Iterate Folds
+    for fold, (train_idx, test_idx) in enumerate(cv.split(X, y), start=1):
+        
+        # --- Split ---
+        # Handle both DataFrames/Series (iloc) and Numpy arrays (indexing)
+        if hasattr(X, "iloc"):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        else:
+            X_train, X_test = X[train_idx], X[test_idx]
+            
+        if hasattr(y, "iloc"):
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        else:
+            y_train, y_test = y[train_idx], y[test_idx]
+
+        # --- Hermetic Wrapper ---
+        # We pass the classifier instance; the wrapper should handle cloning internally
+        hermetic_model = wrapper_class(
+            vectorizer=vectorizer,
+            classifier=classifier
+        )
+
+        # --- Fit & Predict ---
+        hermetic_model.fit(X_train, y_train)
+        y_val_pred = hermetic_model.predict(X_test)
+        y_train_pred = hermetic_model.predict(X_train)
+
+        # --- Metrics ---
+        val_accuracy = accuracy_score(y_test, y_val_pred)
+        
+        val_report = classification_report(
+            y_test, y_val_pred, target_names=mlb.classes_, zero_division=0, output_dict=True
+        )
+        train_report = classification_report(
+            y_train, y_train_pred, target_names=mlb.classes_, zero_division=0, output_dict=True
+        )
+
+        # Collect Category Metrics
+        for label in mlb.classes_:
+            rows_categories.append({
+                "Fold": fold,
+                "Category": label,
+                "Train_F1": train_report[label]["f1-score"],
+                "Val_F1": val_report[label]["f1-score"],
+                "Val_Precision": val_report[label]["precision"],
+                "Val_Recall": val_report[label]["recall"],
+                "Support": val_report[label]["support"]
+            })
+
+        # Collect Global Metrics
+        rows_global.append({
+            "Fold": fold,
+            "Val_Accuracy": val_accuracy,
+            "Val_Weighted_Precision": val_report["weighted avg"]["precision"],
+            "Val_Weighted_Recall": val_report["weighted avg"]["recall"],
+            "Val_Weighted_F1": val_report["weighted avg"]["f1-score"],
+            "Train_Weighted_F1": train_report["weighted avg"]["f1-score"]
+        })
+
+    # --- Global Table ---
+    df_global = pd.DataFrame(rows_global)
+    global_avg = df_global.mean().to_frame(name="Average Score").T.drop(columns=["Fold"])
+    
+    cols_order = ["Train_Weighted_F1", "Val_Weighted_F1", "Val_Weighted_Precision", "Val_Weighted_Recall", "Val_Accuracy"]
+    # Filter columns only if they exist (safe check)
+    global_avg = global_avg[[c for c in cols_order if c in global_avg.columns]]
+
+    print("\n" + "="*40)
+    print(" 🌍 GLOBAL MODEL PERFORMANCE (Avg 5-Folds)")
+    print("="*40)
+    try:
+        display(global_avg)
+    except NameError:
+        print(global_avg)
+
+    # --- Category Table ---
+    df_categories = pd.DataFrame(rows_categories)
+    cat_avg = df_categories.groupby("Category")[
+        ["Train_F1", "Val_F1", "Val_Precision", "Val_Recall", "Support"]
+    ].mean()
+
+    cat_avg["Overfit_Gap"] = cat_avg["Train_F1"] - cat_avg["Val_F1"]
+    cat_avg = cat_avg.sort_values("Val_F1", ascending=False)
+
+    print("\n" + "="*40)
+    print(" DETAILED CATEGORY BREAKDOWN")
+    print("="*40)
+    try:
+        display(cat_avg)
+    except NameError:
+        print(cat_avg)
+        
+    return global_avg, cat_avg

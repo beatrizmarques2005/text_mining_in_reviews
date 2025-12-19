@@ -59,43 +59,7 @@ class MainPipeline(BaseEstimator):
     MainPipeline class for text preprocessing, vectorization, translation,
     and feature extraction.
     """
-
-    '''def __init__(self, 
-                 print_output=False, 
-                 no_emojis=True, 
-                 no_hashtags=True,
-                 hashtag_retain_words=True,
-                 no_newlines=True,
-                 no_urls=True,
-                 no_punctuation=True,
-                 no_stopwords=True,
-                 custom_stopwords=None,
-                 convert_diacritics=True, 
-                 lowercase=True, 
-                 lemmatized=True,
-                 list_pos=["n","v","a","r","s"],
-                 pos_tags_list="no_pos",
-                 tokenized_output=False):
-        """
-        Initializes preprocessing parameters.
-        """
-        self.print_output = print_output
-        self.no_emojis = no_emojis
-        self.no_hashtags = no_hashtags
-        self.hashtag_retain_words = hashtag_retain_words
-        self.no_newlines = no_newlines
-        self.no_urls = no_urls
-        self.no_punctuation = no_punctuation
-        self.no_stopwords = no_stopwords
-        self.custom_stopwords = custom_stopwords if custom_stopwords is not None else []
-        self.convert_diacritics = convert_diacritics
-        self.lowercase = lowercase
-        self.lemmatized = lemmatized
-        self.list_pos = list_pos
-        self.pos_tags_list = pos_tags_list
-        self.tokenized_output = tokenized_output'''
     
-
     def __init__(self, 
                  print_output=False, 
                  no_emojis=True, 
@@ -106,7 +70,7 @@ class MainPipeline(BaseEstimator):
                  no_punctuation=True,
                  no_stopwords=True,
                  custom_stopwords=None,
-                 stopwords_tokeep=None,      # NEW
+                 stopwords_tokeep=None,     
                  convert_diacritics=True, 
                  lowercase=True, 
                  lemmatized=True,
@@ -121,8 +85,8 @@ class MainPipeline(BaseEstimator):
         self.no_urls = no_urls
         self.no_punctuation = no_punctuation
         self.no_stopwords = no_stopwords
-        self.custom_stopwords = custom_stopwords
-        self.stopwords_tokeep = stopwords_tokeep
+        self.custom_stopwords = custom_stopwords if custom_stopwords is not None else []
+        self.stopwords_tokeep = set(stopwords_tokeep) if stopwords_tokeep else set() 
         self.convert_diacritics = convert_diacritics
         self.lowercase = lowercase
         self.lemmatized = lemmatized
@@ -207,13 +171,14 @@ class MainPipeline(BaseEstimator):
 
         Returns tokenized list or detokenized string based on settings.
         """
-        custom_stopwords = self.custom_stopwords if self.custom_stopwords is not None else []
+        #custom_stopwords = self.custom_stopwords if self.custom_stopwords is not None else []
         
-        stopwords_tokeep = self.stopwords_tokeep if self.stopwords_tokeep is not None else set()
-        if not isinstance(stopwords_tokeep, set):
-            stopwords_tokeep = set(stopwords_tokeep)
+        # stopwords_tokeep = self.stopwords_tokeep if self.stopwords_tokeep is not None else set()
+        
+        #if not isinstance(stopwords_tokeep, set):
+        #    stopwords_tokeep = set(stopwords_tokeep)
             
-        list_pos = self.list_pos if self.list_pos is not None else ["n","v","a","r","s"]
+        #list_pos = self.list_pos if self.list_pos is not None else ["n","v","a","r","s"]
 
         if self.print_output:
             print("Input:", raw_text)
