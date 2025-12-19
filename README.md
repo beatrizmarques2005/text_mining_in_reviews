@@ -1,50 +1,39 @@
-# 🍽️ Straining the Great Southern Melting Pot
+# Straining the Great Southern Melting Pot
 
-Analysis of 53,566 restaurant reviews from Atlanta (USA) using Text Mining techniques to classify cuisine types and evaluate the relationship between review polarity and rating.
+*This README provides an overview of the repository structure. Since a report was required for this assignment, the README serves as a brief guide to explain the purpose and contents of each folder.*
 
----
 
-## 🎯 Project Objective
-
-This project aims to apply text mining techniques to address the following information requirements:
-
-- **Multilabel Classification**: Classify a restaurant's cuisine type based on the content of its reviews.
-- **Sentiment Analysis**: Evaluate the relationship between the polarity of a review and its assigned rating.
-- **(XXX)** Additional requirement defined by the group, such as co-occurrence analysis or topic modeling.
-
----
-
-## 📁 Repository Structure
+## Repository Structure
 
 ```tree
 ├── data/
-│   └── atlanta_restaurant_slice_2023.csv
-├── images/
-│   └── XXX.csv
+│   ├── 00_atlanta_restaurant_slice_2023.csv
+|   ├── 01_atlanta_restaurant_slice_2023_new_features.csv
+|   ├── 02_atlanta_restaurant_slice_2023_translated.csv
+|   └── 03_atlanta_restaurant_slice_2023_translated_corrected_tokens.csv  
 ├── notebooks/
 │   ├── 01_data_understanding.ipynb
 |   ├── 02_general_data_prep.ipynb
 |   ├── 03_multilabel_classification.ipynb
 |   ├── 04_sentiment_analysis.ipynb
-|   ├── 05_XXX.ipynb
-│   └── 06_final_deployment.ipynb
+|   ├── 05_named_entity_recognition.ipynb
+│   └── cuisine_network.html
 ├── source/
-│   ├── my_utils.py
-│   ├── visualizations.py
+│   ├── evaluations.py
 │   ├── general_preprocessing.py
-│   ├── classification_prep.py
-│   ├── sentiment_prep.py
 │   ├── modelling.py
-│   └── evaluation-py
-├── report/
-│   └── final_report.pdf
+│   ├── my_utils.py
+│   ├── named_entity_recognition_graph_prep.py
+│   ├── sentiment_prep.py
+│   └── visualizations.py
 ├── README.md
 └── requirements.txt
+
 ```
 
 ---
 
-## 👥 Team
+## Team
 
 - Beatriz Marques 20231605  
 - David Carrilho 20231693  
@@ -53,77 +42,3 @@ This project aims to apply text mining techniques to address the following infor
 - Mariana Calais-Pedro 20231641
 
 ---
-
-## 📊 Methodology
-
-### CRISP-DM
-The project follows the **CRISP-DM** process model, consisting of the following phases:
-
-1. **Business Understanding**  
-2. **Data Understanding**  
-3. **Data Preparation**  
-4. **Modeling**  
-5. **Evaluation**  
-6. **Deployment**
-
-![CRISP-DM Diagram](images/CRISP-DM.png)
-
-### Text Mining Fluxogram VS CRISP-DM
-
-![Text Mining Fluxogram VS CRISP-DM](images/Text%20Mining%20Fluxograma%20VS%20CRISP-DM.jpg)
-
----
-
-## ⚙️ How to Run
-
-```bash
-# Clone the repository
-git clone https://github.com/FHunter2005/Text_Mining---Atlanta_Reviews.git
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the notebook
-jupyter notebook notebooks/main_notebook.ipynb
-```
-
-## 🧪 Git Workflow Guide
-
-Follow these steps to collaborate smoothly with your team:
-
----
-
-### 🔀 Step 1: Check your current branch
-
-Before you start working, verify which branch you're on:
-
-```bash
-git branch
-```
-If you're already on your personal branch, proceed to Step 2. If not, switch to your branch:
-
-```bash
-git checkout your-branch-name
-```
-### 🔄 Step 2: Sync with the shared branch
-Before you start working, pull the latest changes from the shared branch:
-```bash
-git pull origin shared-branch-name
-```
-Now you're ready to work!
-
-### 💾 Step 3: Save and push your changes
-When you're done working:
-```bash
-git add .
-git commit -m "descriptive commit message"
-git push origin your-branch-name
-```
-### 🔁 Step 4: Update the shared branch
-After pushing your changes, merge them into the shared branch:
-```bash
-git checkout shared-branch-name
-git pull origin shared-branch-name
-git merge your-branch-name
-git push origin shared-branch-name
-```

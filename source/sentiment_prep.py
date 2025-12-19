@@ -5,18 +5,11 @@ Sentiment Analysis Preparation Module
 This module contains functions and classes to preprocess and prepare text data for sentiment analysis tasks.
 
 """
-# =============================================================================
-# IMPORTS
-# =============================================================================
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from textblob import TextBlob
 import numpy as np
 
-
-# =============================================================================
-# VADER WRAPPER FUNCTION
-# =============================================================================
 
 def vader_wrapper(user_review):
     """

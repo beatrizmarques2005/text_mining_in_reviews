@@ -85,10 +85,6 @@ class MainPipeline(BaseEstimator):
         self.pos_tags_list = pos_tags_list
         self.tokenized_output = tokenized_output
 
-
-    # ---------------------------------------------
-    # 1. Regex Cleaner
-    # ---------------------------------------------
     def regex_cleaner(self, raw_text):
         """
         Cleans text with regex: emojis, hashtags, URLs, newlines, punctuation.
@@ -128,9 +124,6 @@ class MainPipeline(BaseEstimator):
         text = re.sub(r'\s+', " ", text).strip()
         return text
 
-    # ---------------------------------------------
-    # 2. Repeated Character Reduction
-    # ---------------------------------------------
     @staticmethod
     def repeated_chars(token, max_repeat=2):
         """
@@ -140,9 +133,6 @@ class MainPipeline(BaseEstimator):
         """
         return re.sub(r'(.)\1{%d,}' % max_repeat, r'\1' * max_repeat, token)
 
-    # ---------------------------------------------
-    # 3. Lemmatization
-    # ---------------------------------------------
     def lemmatize_all(self, token):
         """
         Lemmatize token with multiple POS tags.
@@ -152,9 +142,6 @@ class MainPipeline(BaseEstimator):
             token = lemmatizer.lemmatize(token, pos)
         return token
 
-    # ---------------------------------------------
-    # 4. Main Text Pipeline
-    # ---------------------------------------------
     def main_pipeline(self, raw_text, stemmed=False, treat_repeated_chars=False):
         """
         Full preprocessing pipeline: cleaning, tokenization, stopwords,
@@ -162,14 +149,6 @@ class MainPipeline(BaseEstimator):
 
         Returns tokenized list or detokenized string based on settings.
         """
-        #custom_stopwords = self.custom_stopwords if self.custom_stopwords is not None else []
-        
-        # stopwords_tokeep = self.stopwords_tokeep if self.stopwords_tokeep is not None else set()
-        
-        #if not isinstance(stopwords_tokeep, set):
-        #    stopwords_tokeep = set(stopwords_tokeep)
-            
-        #list_pos = self.list_pos if self.list_pos is not None else ["n","v","a","r","s"]
 
         if self.print_output:
             print("Input:", raw_text)
@@ -177,10 +156,9 @@ class MainPipeline(BaseEstimator):
         text = self.regex_cleaner(raw_text)
         tokens = nltk.word_tokenize(text)
 
-        # Handle contractions
         contractions = {"'m": "am", "n't": "not", "'s": "is", "'re": "are", "'ve": "have", "'ll": "will", "'d": "would"}
-        # Correct way
-        tokens = [t for t in tokens]  # start with original tokens
+
+        tokens = [t for t in tokens]
         
         for pattern, repl in contractions.items():
             tokens = [re.sub(pattern, repl, t) for t in tokens]
@@ -190,8 +168,8 @@ class MainPipeline(BaseEstimator):
 
         if self.no_stopwords:
             stopwords_set = set(nltk.corpus.stopwords.words("english"))
-            stopwords_set.update(self.custom_stopwords)           # add custom stopwords
-            stopwords_set -= self.stopwords_tokeep               # remove the words you want to keep
+            stopwords_set.update(self.custom_stopwords)      
+            stopwords_set -= self.stopwords_tokeep            
             tokens = [t for t in tokens if t.lower() not in stopwords_set]
 
         if self.convert_diacritics:
@@ -218,9 +196,6 @@ class MainPipeline(BaseEstimator):
 
         return TreebankWordDetokenizer().detokenize(tokens)
 
-    # ---------------------------------------------
-    # 5. Vectorization
-    # ---------------------------------------------
     @staticmethod
     def vectorize_texts(texts, vectorizer_type="tfidf", max_features=1000, ngram_range=(1, 1), vector_size=100):
         """
@@ -248,9 +223,6 @@ class MainPipeline(BaseEstimator):
         else:
             raise ValueError("Choose 'tfidf', 'count', or 'doc2vec'")
 
-    # ---------------------------------------------
-    # 6. Co-occurrence Matrix
-    # ---------------------------------------------
     @staticmethod
     def cooccurrence_matrix(vectorized_df):
         """
@@ -274,9 +246,6 @@ class MainPipeline(BaseEstimator):
                          .reindex(cooc_df.sum().sort_values(ascending=False).index, axis=1)
         return cooc_df
 
-    # ---------------------------------------------
-    # 7. Translation & Language Detection
-    # ---------------------------------------------
     @staticmethod
     def process_and_translate_dataset(dataset: pd.DataFrame, text_column: str = '00_before_translating_cleaning') -> pd.DataFrame:
         """
@@ -326,9 +295,7 @@ class MainPipeline(BaseEstimator):
         dataset['text_for_pipeline'] = dataset['text_translated']
         return dataset
 
-    # ---------------------------------------------
-    # 8. NER Feature Extraction
-    # ---------------------------------------------
+
     @staticmethod
     def word2features(token_list, POS_list, i):
         """
@@ -432,7 +399,7 @@ def main_pipeline(
 
 # --- Similarity metrics ---
 def levenshtein_sim(w1, w2):
-    # normalize distance into similarity [0,1]
+
     dist = Levenshtein.distance(w1, w2)
     return 1 - dist / max(len(w1), len(w2))
 
@@ -450,14 +417,13 @@ def combined_similarity(w1, w2, weights=(0.4, 0.4, 0.2)):
     jacc = jaccard_sim(w1, w2)
     return weights[0]*lev + weights[1]*jaro + weights[2]*jacc
 
-# --- Correction function ---
 def correct_word(word, vocab, word_counts, threshold=0.85):
     """
     Correct a word by finding the most frequent similar candidate.
     threshold: minimum similarity to consider correction
     """
     if word in word_counts and word_counts[word] > 5:
-        # frequent enough, assume correct
+    
         return word
     
     best_word, best_score = word, 0
@@ -466,15 +432,13 @@ def correct_word(word, vocab, word_counts, threshold=0.85):
             continue
         score = combined_similarity(word, candidate)
         if score > threshold and score > best_score:
-            # prefer more frequent candidate
+        
             if word_counts[candidate] >= word_counts[word]:
                 best_word, best_score = candidate, score
     return best_word
 
-
-# --- Apply to dataset ---
 def correct_tokens_column(dataset, token_col='normalized_tokens'):
-    # Flatten all tokens to build frequency dictionary
+
     all_tokens = [w for tokens in dataset[token_col] for w in tokens]
     word_counts = Counter(all_tokens)
     vocab = list(word_counts.keys())
@@ -482,4 +446,51 @@ def correct_tokens_column(dataset, token_col='normalized_tokens'):
     dataset['words_corrected'] = dataset[token_col].apply(
         lambda tokens: [correct_word(w, vocab, word_counts) for w in tokens]
     )
+
+    return dataset
+
+from collections import Counter
+
+
+def correct_tokens_column_string(
+    dataset,
+    text_col,
+    output_col='words_corrected'
+):
+    # Step 1: tokenize using main_pipeline
+    tokenized_col = dataset[text_col].apply(
+        lambda x: main_pipeline(
+            raw_text=x,
+            no_emojis=True,             
+            no_hashtags=True,           
+            hashtag_retain_words=True,  
+            no_newlines=True,           
+            no_urls=True,
+            no_punctuation=True,  
+            no_stopwords=True,
+            custom_stopwords=[],
+            stopwords_tokeep=[],
+            convert_diacritics=True,
+            lowercase=True,
+            lemmatized=True,
+            list_pos=[],
+            pos_tags_list='no_pos',
+            tokenized_output=True,
+            stemmed=False,
+            treat_repeated_chars=True
+        )
+    )
+
+    # Step 2: build frequency dictionary
+    all_tokens = [w for tokens in tokenized_col for w in tokens]
+    word_counts = Counter(all_tokens)
+    vocab = list(word_counts.keys())
+
+    # Step 3: correct tokens and convert back to string
+    dataset[output_col] = tokenized_col.apply(
+        lambda tokens: " ".join(
+            correct_word(w, vocab, word_counts) for w in tokens
+        )
+    )
+
     return dataset
