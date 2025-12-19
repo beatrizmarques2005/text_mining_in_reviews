@@ -22,37 +22,32 @@ def extract_entities(tokens, labels):
 
     for tok, tag in zip(tokens, labels):
         if tag.startswith("B-"):
-            # 1. New entity starts: Save previous if exists
+
             if current_tokens:
                 entities.append((" ".join(current_tokens), current_type))
             
-            # 2. Reset for new entity
             current_tokens = [tok]
             current_type = tag[2:]
             
         elif tag.startswith("I-"):
-            # 3. Inside entity: Check if type matches
+
             tag_type = tag[2:]
-            
-            # Only append if we are in an entity AND types match
+
             if current_tokens and current_type == tag_type:
                 current_tokens.append(tok)
             else:
-                # Mismatch or Orphan I-tag: Treat as new B-tag (or O-tag depending on preference)
-                # Here we treat it as starting a new entity of that type to be safe
+
                 if current_tokens:
                     entities.append((" ".join(current_tokens), current_type))
                 current_tokens = [tok]
                 current_type = tag_type
                 
         else:
-            # 4. Outside (O): Save previous and reset
             if current_tokens:
                 entities.append((" ".join(current_tokens), current_type))
             current_tokens = []
             current_type = None
 
-    # Flush remaining
     if current_tokens:
         entities.append((" ".join(current_tokens), current_type))
 
@@ -62,15 +57,12 @@ def extract_entities(tokens, labels):
 # 2. Extract DISH + LOCATION + CUISINE entities
 # ---------------------------------------------------
 
-# Adjust these to match your real labels:
-# DISH_TAGS = {"food", "dish", "meal"}
 LOC_TAGS = {"loc", "geo", "car", "gpe"}        
-CUISINE_TAGS = {"grp"}  # grp might include ethnicities
+CUISINE_TAGS = {"grp"}
 
 def classify_entity(ent_type, location_included):
     et = ent_type.lower()
-    # if et in DISH_TAGS:
-    #     return "DISH"
+
     if location_included and et in LOC_TAGS:
         return "LOC"
     elif et in CUISINE_TAGS:
@@ -86,11 +78,10 @@ def sparsify_graph(graph, k=5):
     new_edges = set()
     for n in graph.nodes():
         neighbors = graph[n].items()
-        # Sort neighbors by edge weight
+
         sorted_neighbors = sorted(neighbors, key=lambda x: x[1]['weight'], reverse=True)
-        # Keep top k
+
         for nbr, data in sorted_neighbors[:k]:
-            # Store as tuple sorted alphabetically to avoid duplicates (u,v) vs (v,u)
             edge = tuple(sorted((n, nbr)))
             new_edges.add((edge[0], edge[1], data['weight']))
             
@@ -99,8 +90,7 @@ def sparsify_graph(graph, k=5):
     
     for u, v, w in new_edges:
         G_clean.add_edge(u, v, weight=w)
-        
-    # Remove isolated nodes that lost all edges
+
     G_clean.remove_nodes_from(list(nx.isolates(G_clean)))
     return G_clean
 
@@ -128,22 +118,18 @@ def infer_cluster_name(nodes, graph, location_included):
     of its constituent nodes.
     Priority: CUISINE > LOC > DISH
     """
-    # dictionaries to hold total weight for each entity in the cluster
     cuisine_scores = defaultdict(int)
     dish_scores = defaultdict(int)
     if location_included:
         loc_scores = defaultdict(int)
     
     for node in nodes:
-        # Get the type we assigned in Step 3
         if not graph.has_node(node): 
             continue
             
         attrs = graph.nodes[node]
         ent_type = attrs.get('type')
-        
-        # Calculate importance: The weighted degree of the node within the whole graph
-        # (or you could restrict this to degree within the subgraph)
+
         score = graph.degree(node, weight='weight')
         
         if ent_type == "CUISINE":
