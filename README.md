@@ -23,7 +23,7 @@
 │   ├── general_preprocessing.py
 │   ├── modelling.py
 │   ├── my_utils.py
-│   ├── named_entity_recognition_graph_prep.py
+│   ├── ner_graph_prep.py
 │   ├── sentiment_prep.py
 │   └── visualizations.py
 ├── README.md
