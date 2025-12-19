@@ -483,3 +483,53 @@ def correct_tokens_column(dataset, token_col='normalized_tokens'):
         lambda tokens: [correct_word(w, vocab, word_counts) for w in tokens]
     )
     return dataset
+<<<<<<< HEAD
+=======
+
+from collections import Counter
+
+
+def correct_tokens_column_string(
+    dataset,
+    text_col,
+    output_col='words_corrected'
+):
+    # Step 1: tokenize using main_pipeline
+    tokenized_col = dataset[text_col].apply(
+        lambda x: main_pipeline(
+            raw_text=x,
+            no_emojis=True,             
+            no_hashtags=True,           
+            hashtag_retain_words=True,  
+            no_newlines=True,           
+            no_urls=True,
+            no_punctuation=True,  
+            no_stopwords=True,
+            custom_stopwords=[],
+            stopwords_tokeep=[],
+            convert_diacritics=True,
+            lowercase=True,
+            lemmatized=True,
+            list_pos=[],
+            pos_tags_list='no_pos',
+            tokenized_output=True,
+            stemmed=False,
+            treat_repeated_chars=True
+        )
+    )
+
+    # Step 2: build frequency dictionary
+    all_tokens = [w for tokens in tokenized_col for w in tokens]
+    word_counts = Counter(all_tokens)
+    vocab = list(word_counts.keys())
+
+    # Step 3: correct tokens and convert back to string
+    dataset[output_col] = tokenized_col.apply(
+        lambda tokens: " ".join(
+            correct_word(w, vocab, word_counts) for w in tokens
+        )
+    )
+
+    return dataset
+
+>>>>>>> e598bcf2fa0a0c6ecaefd501ce0a590d780d052d
