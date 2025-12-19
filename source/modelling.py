@@ -12,7 +12,6 @@ from gensim.models.doc2vec import TaggedDocument
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import DistilBertModel
 from sklearn.base import clone
 import pandas as pd
 import matplotlib.pyplot as plt
