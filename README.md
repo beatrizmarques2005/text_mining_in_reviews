@@ -27,6 +27,7 @@
 │   ├── sentiment_prep.py
 │   └── visualizations.py
 ├── README.md
+├── group08_report.pdf
 └── requirements.txt
 
 ```
