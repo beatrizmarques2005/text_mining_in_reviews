@@ -1,4 +1,5 @@
 # Straining the Great Southern Melting Pot
+### Text Mining Class · Data Science Degree · NOVA IMS
 
 ## 📋 Overview
 
